@@ -28,6 +28,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/minio/minio/internal/config"
 )
 
 func TestMinioVersionToReleaseTime(t *testing.T) {
@@ -358,5 +360,21 @@ func TestInplaceUpdateDisabledByDefault(t *testing.T) {
 	u, _ := url.Parse("https://example.invalid/minio")
 	if err := verifyBinary(u, nil, "RELEASE.2000-01-01T00-00-00Z", "", strings.NewReader("")); err == nil {
 		t.Fatal("verifyBinary must fail without a minisign public key")
+	}
+}
+
+// Callhome ships diagnostics to the upstream SUBNET service and must not be
+// enableable in this fork.
+func TestCallhomeRejected(t *testing.T) {
+	if callhomeSupported {
+		t.Fatal("callhome must stay disabled in this fork")
+	}
+	cfg := newServerConfig()
+	cfg[config.CallhomeSubSys][config.Default] = config.KVS{
+		config.KV{Key: "enable", Value: "on"},
+		config.KV{Key: "frequency", Value: "24h"},
+	}
+	if err := validateSubSysConfig(t.Context(), cfg, config.CallhomeSubSys, nil); err == nil {
+		t.Fatal("enabling callhome must be rejected")
 	}
 }

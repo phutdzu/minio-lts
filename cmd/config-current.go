@@ -387,9 +387,10 @@ func validateSubSysConfig(ctx context.Context, s config.Config, subSys string, o
 		if err != nil {
 			return err
 		}
-		// callhome cannot be enabled if license is not registered yet, throw an error.
-		if cfg.Enabled() && !globalSubnetConfig.Registered() {
-			return errors.New("Deployment is not registered with SUBNET. Please register the deployment via 'mc license register ALIAS'")
+		// callhome uploads diagnostics to the upstream SUBNET service,
+		// it is not supported in this fork.
+		if cfg.Enabled() {
+			return errors.New("callhome is not supported in this build")
 		}
 	case config.DriveSubSys:
 		if _, err := drive.LookupConfig(s[config.DriveSubSys][config.Default]); err != nil {

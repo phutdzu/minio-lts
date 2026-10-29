@@ -30,7 +30,9 @@ import (
 )
 
 const (
-	baseURL    = "https://subnet.min.io"
+	// baseURL is empty on purpose: this fork does not talk to the upstream
+	// SUBNET service, so requests built from it can never reach the network.
+	baseURL    = ""
 	baseURLDev = "http://localhost:9000"
 )
 

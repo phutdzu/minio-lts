@@ -31,11 +31,17 @@ import (
 	"github.com/minio/madmin-go/v3"
 )
 
+// callhomeSupported is false in this fork: nothing is ever sent to SUBNET.
+const callhomeSupported = false
+
 var callhomeLeaderLockTimeout = newDynamicTimeout(30*time.Second, 10*time.Second)
 
 // initCallhome will start the callhome task in the background.
+//
+// Callhome uploads diagnostics to the upstream SUBNET service, which this
+// fork does not use, so it never starts regardless of configuration.
 func initCallhome(ctx context.Context, objAPI ObjectLayer) {
-	if !globalCallhomeConfig.Enabled() {
+	if !callhomeSupported || !globalCallhomeConfig.Enabled() {
 		return
 	}
 
