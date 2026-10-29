@@ -54,10 +54,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped (with rea
 
 ## Phase 5 - Helm & later
 
-- [ ] 5.1 Repoint `helm/minio/values.yaml` images to our registry
-- [ ] 5.2 Decide on `mc` image source (separate upstream repo)
-- [ ] 5.3 Replace hardcoded `docs.min.io` / `play.min.io` / `slack.min.io` text in code
-- [ ] 5.4 Recurring security routine: `govulncheck`, Go patch upgrades, dependency bumps
+- [x] 5.1 Repoint `helm/minio/values.yaml` images to our registry
+- [x] 5.2 Decide on `mc` image source (separate upstream repo)
+- [x] 5.3 Replace hardcoded `docs.min.io` / `play.min.io` / `slack.min.io` text in code
+- [x] 5.4 Recurring security routine: `govulncheck`, Go patch upgrades, dependency bumps
 
 ## Log
 
@@ -103,3 +103,7 @@ All used Go `1.24.x` on ubuntu. Run order suggestion: lint/test first, slow suit
 | 2026-10-29 | 4.4 | `.gitlab-ci.yml`: vendor-check, verify-tag, lint (golangci-lint v2.5.0 image), unit-test, govulncheck (v1.1.4), helm-lint, binaries, image (buildx multi-arch, dind), upload-binaries, release. YAML parsed and stage/needs checked locally, **never run on a GitLab runner**. `lint`, `govulncheck`, `helm-lint` are `allow_failure: true` until proven green. Not verified locally: the golangci-lint config under v2.5.0 (running its installer in a container was blocked), govulncheck results, image tags `curlimages/curl:8.11.1`, `alpine/helm:3.17.0`, release-cli. |
 | 2026-10-29 | 4.5 | Publishing is wired in CI (container registry `$CI_REGISTRY_IMAGE`, generic package registry, release links) but nothing has been published. Makefile: `REPO` now `registry.gitlab.com/phucdzu-resource`, new targets `version`, `docker`, `docker-multiarch`, `release-binaries`. Release flow: `git tag "$(make -s version)"` then push the tag (job `verify-tag` enforces tag == FORK.<UTC commit time>). |
 | 2026-10-29 | 4.4 test run on Go 1.24 | `golang:1.24` container on a Docker VM with 3GB RAM / 2 CPU: `go test ./...` killed the compiler (`signal: killed`) when building the `cmd` test binary, also with `-p 1` and a single test selected, so it is memory, not code. Could not confirm whether `TestTrackingResponseWriter` passes on Go 1.24 (still open). `internal/grid` `TestStreamSuite/testServerStreamTwowayPingReq` failed once under load and passed 3/3 when run alone (flaky). **CI runners need roughly 4GB+ RAM to build the `cmd` tests**, check the runner size before trusting the `unit-test` job. |
+| 2026-10-29 | 5.1 | Helm chart: `Chart.yaml` version 5.5.0, appVersion `latest`, home/sources/maintainers point at the GitLab project, MinIO logo and `dev@minio.io` removed. `values.yaml`: `image` -> `registry.gitlab.com/phucdzu-resource/minio:latest`, `mcImage` -> `.../minio/mc:latest`, pullPolicy `Always` (pin a `FORK.<time>` tag in production). Chart README rewritten for installing from a checkout (`./helm/minio`), no Helm repo is published. Verified with `alpine/helm:3.17.0`: `helm lint` passes (only "icon is recommended"), `helm template` renders our images for distributed, standalone and with-buckets (post-job) cases. Not done: installing into a real cluster. |
+| 2026-10-29 | 5.2 | `mc` source: instead of depending on a separate `minio/mc` image, `tools/mc/main.go` builds the already vendored `github.com/minio/mc/cmd` (go.mod: mc moved from indirect to direct, vendor unchanged). Dockerfile has targets `mc` and `minio` (default); `make docker-mc`; `build-release.sh` also emits `mc-<os>-<arch>`; CI builds and pushes `$CI_REGISTRY_IMAGE/mc`. Verified: 54MB image, `mc --version` = `FORK.<time>`, and the chart's own commands (`alias set`, `mb`, `pipe`, `ls`, `admin info`) work against a fork server over a Docker network. mc's startup update check is off because it only runs for `RELEASE.*` tags; explicit `mc update` still targets `dl.min.io` (not removed). |
+| 2026-10-29 | 5.3 | Replaced the misleading "Please contact MinIO at https://slack.min.io" error text. Left `docs.min.io` links (informational) and the `play.min.io` example comment. Also ran `gofmt` on `internal/config/subnet/config_test.go` (Phase 2 file with a stray blank line). |
+| 2026-10-29 | 5.4 | Added `MAINTENANCE.md`: weekly scheduled pipeline (govulncheck + image rebuild), monthly Go patch bump, dependency fix procedure, base image, release steps, what to review if upstream resumes. The GitLab schedule itself still has to be created in the UI. `helm-lint` CI job is no longer `allow_failure` (ran green locally). |

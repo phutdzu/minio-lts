@@ -110,7 +110,7 @@ mc ls local/data
 
 ## Kubernetes
 
-A community Helm chart lives in [`helm/minio`](helm/minio). Its default image still points at upstream (`quay.io/minio/minio`), which no longer exists, so override `image.repository` and `image.tag` with an image you built.
+A community Helm chart lives in [`helm/minio`](helm/minio). It defaults to the images built by this repository (`registry.gitlab.com/phucdzu-resource/minio` and `.../minio/mc`) and is installed from a checkout, see the [chart README](helm/minio/README.md). Pin `image.tag` to a released `FORK.<time>` version in production.
 
 ## Development
 
@@ -121,7 +121,7 @@ make test        # build, lint and unit tests
 
 After changing dependencies always run `go mod tidy && go mod vendor` and commit `go.mod`, `go.sum` and `vendor/` together.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and [MAINTENANCE.md](MAINTENANCE.md) (recurring security and upgrade routine).
 
 ## Documentation
 

@@ -94,7 +94,6 @@ helm-lint:
   image:
     name: alpine/helm:3.17.0
     entrypoint: [""]
-  allow_failure: true
   script:
     - helm lint helm/minio
 
@@ -114,7 +113,9 @@ binaries:
 
 # --------------------------------------------------------------- package
 
-# Merge requests only check that the image builds, branches and tags push it.
+# Builds the server image (${CI_REGISTRY_IMAGE}) and the mc client image
+# (${CI_REGISTRY_IMAGE}/mc). Merge requests only check that they build,
+# branches and tags push them.
 image:
   stage: package
   image: docker:27
@@ -127,20 +128,25 @@ image:
     - docker buildx create --use --name multiarch --driver docker-container
   script:
     - |
-      TAGS=""
-      PUSH=""
-      if [ -n "${CI_COMMIT_TAG}" ]; then
-        TAGS="-t ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG} -t ${CI_REGISTRY_IMAGE}:latest"
-        PUSH="--push"
-      elif [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
-        TAGS="-t ${CI_REGISTRY_IMAGE}:edge -t ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
-        PUSH="--push"
-      fi
-      docker buildx build \
-        --platform linux/amd64,linux/arm64 \
-        --build-arg COMMIT_ID="${CI_COMMIT_SHA}" \
-        --build-arg COMMIT_TIME="${CI_COMMIT_TIMESTAMP}" \
-        ${TAGS} ${PUSH} .
+      build() { # build <target> <image>
+        TAGS=""
+        PUSH=""
+        if [ -n "${CI_COMMIT_TAG}" ]; then
+          TAGS="-t $2:${CI_COMMIT_TAG} -t $2:latest"
+          PUSH="--push"
+        elif [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+          TAGS="-t $2:edge -t $2:${CI_COMMIT_SHORT_SHA}"
+          PUSH="--push"
+        fi
+        docker buildx build \
+          --target "$1" \
+          --platform linux/amd64,linux/arm64 \
+          --build-arg COMMIT_ID="${CI_COMMIT_SHA}" \
+          --build-arg COMMIT_TIME="${CI_COMMIT_TIMESTAMP}" \
+          ${TAGS} ${PUSH} .
+      }
+      build minio "${CI_REGISTRY_IMAGE}"
+      build mc "${CI_REGISTRY_IMAGE}/mc"
 
 # --------------------------------------------------------------- release
 
@@ -176,7 +182,7 @@ release:
     description: |
       Unofficial MinIO community fork, version `${CI_COMMIT_TAG}`.
 
-      Container image (linux/amd64, linux/arm64): `${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG}`
+      Container images (linux/amd64, linux/arm64): `${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG}` and the client `${CI_REGISTRY_IMAGE}/mc:${CI_COMMIT_TAG}`
 
       Verify downloads with `SHA256SUMS`. Licensed under AGPLv3, source is this repository at the tagged commit.
     assets:
@@ -195,3 +201,15 @@ release:
           url: "${PACKAGE_URL}/minio-darwin-arm64"
         - name: minio-windows-amd64.exe
           url: "${PACKAGE_URL}/minio-windows-amd64.exe"
+        - name: mc-linux-amd64
+          url: "${PACKAGE_URL}/mc-linux-amd64"
+        - name: mc-linux-arm64
+          url: "${PACKAGE_URL}/mc-linux-arm64"
+        - name: mc-linux-ppc64le
+          url: "${PACKAGE_URL}/mc-linux-ppc64le"
+        - name: mc-darwin-amd64
+          url: "${PACKAGE_URL}/mc-darwin-amd64"
+        - name: mc-darwin-arm64
+          url: "${PACKAGE_URL}/mc-darwin-arm64"
+        - name: mc-windows-amd64.exe
+          url: "${PACKAGE_URL}/mc-windows-amd64.exe"
