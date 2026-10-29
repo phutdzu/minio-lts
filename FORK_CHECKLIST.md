@@ -46,11 +46,11 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped (with rea
 
 ## Phase 4 - Build artifacts (after repo is clean)
 
-- [ ] 4.1 New multi-stage `Dockerfile` building from source
-- [ ] 4.2 Multi-arch image (amd64/arm64) build
-- [ ] 4.3 Binary builds for linux/amd64, linux/arm64 (+ others as needed), with checksums
-- [ ] 4.4 `.gitlab-ci.yml`: lint, test, govulncheck, build binaries, build+push image
-- [ ] 4.5 Publish to GitLab Container Registry / Package Registry
+- [x] 4.1 New multi-stage `Dockerfile` building from source
+- [x] 4.2 Multi-arch image (amd64/arm64) build
+- [x] 4.3 Binary builds for linux/amd64, linux/arm64 (+ others as needed), with checksums
+- [~] 4.4 `.gitlab-ci.yml`: lint, test, govulncheck, build binaries, build+push image
+- [~] 4.5 Publish to GitLab Container Registry / Package Registry
 
 ## Phase 5 - Helm & later
 
@@ -97,3 +97,8 @@ All used Go `1.24.x` on ubuntu. Run order suggestion: lint/test first, slow suit
 | later | `go-resiliency.yml` | `make test-resiliency` | Needs docker + built image |
 | later | `iam-integrations.yaml`, `root-disable.yml`, `upgrade-ci-cd.yaml` | `make test-iam`, `test-root-disable`, `test-upgrade` | IAM needs LDAP/etcd/dex service containers from `quay.io/minio/*` which may be gone |
 | drop | `mint.yml`, `depsreview.yaml`, `issues.yaml`, `lock.yml`, `stale.yml` | mint S3 compat (needs `minio/mint` image + built image), GitHub dependency review, issue bots | Mint worth revisiting after 4.x if `minio/mint` still pulls |
+| 2026-10-29 | 4.1 | New multi-stage `Dockerfile`: `golang:1.24-alpine` build stage (`--platform=$BUILDPLATFORM`, offline `-mod=vendor`, `-trimpath`, `-tags kqueue`) + plain `alpine:3.22` runtime that only `COPY`s (no `RUN`, so no QEMU needed for foreign arch). `COMMIT_ID`/`COMMIT_TIME` build args are required because `.git` is not in the context; `buildscripts/gen-ldflags.go` got `MINIO_COMMIT_ID`/`MINIO_COMMIT_TIME` env overrides for that. Removed `Dockerfile.scratch` and `dockerscripts/download-static-curl.sh`. Decisions: base alpine, runs as root like upstream, no `mc`/`curl` in image, labels are OCI (`minio-fork`), `MINIO_UPDATE_MINISIGN_PUBKEY` env dropped. |
+| 2026-10-29 | 4.1/4.2 verified | Built on an arm64 host: `linux/arm64` image 158MB, runs, `minio --version` = `FORK.2026-10-29T08-55-58Z` on go1.24.13, health 200, console 200, S3 round trip OK (create bucket, put, get, unsigned get = 403). `linux/amd64` image built on the same host and `minio --version` runs under QEMU. |
+| 2026-10-29 | 4.3 | `buildscripts/build-release.sh` + `make release-binaries` -> `dist/minio-<os>-<arch>` and `SHA256SUMS` for linux amd64/arm64/ppc64le, darwin amd64/arm64, windows amd64 (`dist/` is git-ignored). Verified for linux/arm64 (static ELF, 99MB) and windows/amd64 (PE32+); the other 4 platforms built earlier in Phase 1 but were not re-run through this script. No minisign signing (upstream key is gone), integrity via SHA256SUMS only. |
+| 2026-10-29 | 4.4 | `.gitlab-ci.yml`: vendor-check, verify-tag, lint (golangci-lint v2.5.0 image), unit-test, govulncheck (v1.1.4), helm-lint, binaries, image (buildx multi-arch, dind), upload-binaries, release. YAML parsed and stage/needs checked locally, **never run on a GitLab runner**. `lint`, `govulncheck`, `helm-lint` are `allow_failure: true` until proven green. Not verified locally: the golangci-lint config under v2.5.0 (running its installer in a container was blocked), govulncheck results, image tags `curlimages/curl:8.11.1`, `alpine/helm:3.17.0`, release-cli. |
+| 2026-10-29 | 4.5 | Publishing is wired in CI (container registry `$CI_REGISTRY_IMAGE`, generic package registry, release links) but nothing has been published. Makefile: `REPO` now `registry.gitlab.com/phucdzu-resource`, new targets `version`, `docker`, `docker-multiarch`, `release-binaries`. Release flow: `git tag "$(make -s version)"` then push the tag (job `verify-tag` enforces tag == FORK.<UTC commit time>). |

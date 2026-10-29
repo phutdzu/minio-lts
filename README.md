@@ -48,8 +48,44 @@ Check what you built:
 ./minio --version
 ```
 
-> [!NOTE]
-> Container images and CI release pipelines are not set up yet, see Phase 4 in [FORK_CHECKLIST.md](FORK_CHECKLIST.md).
+### Release binaries
+
+```sh
+make release-binaries   # ./dist/minio-<os>-<arch> + SHA256SUMS
+```
+
+Builds linux (amd64, arm64, ppc64le), darwin (amd64, arm64) and windows (amd64) with `-trimpath`, static, version `FORK.<time>`. Restrict the set with `PLATFORMS="linux/amd64 linux/arm64" bash buildscripts/build-release.sh`.
+
+### Container image
+
+The [`Dockerfile`](Dockerfile) compiles MinIO from the vendored source (nothing is downloaded from upstream) on `alpine`.
+
+```sh
+make docker             # image for your host platform
+make docker-multiarch   # linux/amd64 + linux/arm64, pushed with docker buildx
+```
+
+The image is tagged `registry.gitlab.com/phucdzu-resource/minio:FORK.<time>` (override with `REPO=` or `TAG=`). Run it like any MinIO image:
+
+```sh
+docker run -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=admin -e MINIO_ROOT_PASSWORD=change-me-please \
+  -v minio-data:/data \
+  registry.gitlab.com/phucdzu-resource/minio:latest server /data --console-address :9001
+```
+
+Differences from the upstream image: no `mc` and no `curl` inside, runs as root like upstream (use `--user` or a Kubernetes `securityContext` to drop privileges), the deprecated `MINIO_USERNAME` user switching is not supported.
+
+### Releases and CI
+
+[`.gitlab-ci.yml`](.gitlab-ci.yml) verifies vendoring, lints, tests, cross compiles and builds the image on every merge request. A release is a tag named after the commit time:
+
+```sh
+git tag "$(make -s version)"    # e.g. FORK.2026-10-29T08-55-58Z
+git push origin --tags
+```
+
+The tag pipeline pushes the multi-arch image and `:latest`, uploads the binaries and `SHA256SUMS` to the package registry, and creates a GitLab release.
 
 ## Run
 
