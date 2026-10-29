@@ -10,6 +10,9 @@
 #     -t minio:dev .
 #
 # `make docker` and `make docker-multiarch` do this for you.
+#
+# Targets: `minio` (default, the server) and `mc` (the client used by the Helm
+# chart's post-install job, built from the vendored github.com/minio/mc).
 
 ARG GO_VERSION=1.24
 ARG ALPINE_VERSION=3.22
@@ -36,7 +39,50 @@ RUN test -n "${COMMIT_ID}" && test -n "${COMMIT_TIME}" \
     GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" \
     go build -tags kqueue -trimpath -ldflags "${LDFLAGS}" -o /out/minio .
 
-FROM alpine:${ALPINE_VERSION}
+# Same toolchain setup as `build`, compiles the mc client instead.
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS build-mc
+
+ARG TARGETOS
+ARG TARGETARCH
+ARG COMMIT_ID
+ARG COMMIT_TIME
+
+ENV CGO_ENABLED=0 \
+    GOFLAGS=-mod=vendor \
+    GOPROXY=off \
+    GOTOOLCHAIN=local
+
+WORKDIR /src
+COPY . .
+
+# The mc package has the same Version/ReleaseTag/CommitID variables as minio,
+# reuse the minio ldflags with the package path swapped.
+RUN test -n "${COMMIT_ID}" && test -n "${COMMIT_TIME}" \
+    || { echo "COMMIT_ID and COMMIT_TIME build args are required" >&2; exit 1; }; \
+    LDFLAGS="$(MINIO_RELEASE=FORK MINIO_COMMIT_ID="${COMMIT_ID}" MINIO_COMMIT_TIME="${COMMIT_TIME}" go run buildscripts/gen-ldflags.go | sed 's#github.com/minio/minio/cmd#github.com/minio/mc/cmd#g')" && \
+    GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" \
+    go build -trimpath -ldflags "${LDFLAGS}" -o /out/mc ./tools/mc
+
+FROM alpine:${ALPINE_VERSION} AS mc
+
+ARG COMMIT_ID
+ARG COMMIT_TIME
+
+LABEL org.opencontainers.image.title="minio-fork-mc" \
+      org.opencontainers.image.description="MinIO client (mc) built from the vendored sources of the unofficial MinIO community fork" \
+      org.opencontainers.image.licenses="AGPL-3.0-only" \
+      org.opencontainers.image.revision="${COMMIT_ID}" \
+      org.opencontainers.image.created="${COMMIT_TIME}"
+
+ENV MC_CONFIG_DIR=/tmp/.mc
+
+COPY --from=build-mc /out/mc /usr/bin/mc
+COPY CREDITS LICENSE NOTICE /licenses/
+
+ENTRYPOINT ["/usr/bin/mc"]
+
+# Last stage so that a plain `docker build .` produces the server image.
+FROM alpine:${ALPINE_VERSION} AS minio
 
 ARG COMMIT_ID
 ARG COMMIT_TIME

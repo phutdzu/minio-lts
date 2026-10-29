@@ -12,6 +12,7 @@ COMMIT_TIME := $(shell git log -1 --format=%cI)
 VERSION ?= FORK.$(shell TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%SZ)
 REPO ?= registry.gitlab.com/phucdzu-resource
 TAG ?= $(REPO)/minio:$(VERSION)
+MC_TAG ?= $(REPO)/minio/mc:$(VERSION)
 PLATFORMS ?= linux/amd64,linux/arm64
 
 GOLANGCI_DIR = .bin/golangci/$(GOLANGCI_VERSION)
@@ -192,9 +193,15 @@ docker: ## builds the container image for the host platform
 	@echo "Building minio docker image '$(TAG)'"
 	@docker build --build-arg COMMIT_ID=$(COMMIT_ID) --build-arg COMMIT_TIME=$(COMMIT_TIME) -t $(TAG) .
 
-docker-multiarch: ## builds and pushes the multi-arch container image
+docker-mc: ## builds the mc (client) container image for the host platform
+	@echo "Building mc docker image '$(MC_TAG)'"
+	@docker build --target mc --build-arg COMMIT_ID=$(COMMIT_ID) --build-arg COMMIT_TIME=$(COMMIT_TIME) -t $(MC_TAG) .
+
+docker-multiarch: ## builds and pushes the multi-arch minio and mc container images
 	@echo "Building and pushing multi-arch minio docker image '$(TAG)' for $(PLATFORMS)"
 	@docker buildx build --platform $(PLATFORMS) --build-arg COMMIT_ID=$(COMMIT_ID) --build-arg COMMIT_TIME=$(COMMIT_TIME) -t $(TAG) --push .
+	@echo "Building and pushing multi-arch mc docker image '$(MC_TAG)' for $(PLATFORMS)"
+	@docker buildx build --target mc --platform $(PLATFORMS) --build-arg COMMIT_ID=$(COMMIT_ID) --build-arg COMMIT_TIME=$(COMMIT_TIME) -t $(MC_TAG) --push .
 
 release-binaries: ## builds release binaries and SHA256SUMS into ./dist
 	@bash buildscripts/build-release.sh

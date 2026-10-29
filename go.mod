@@ -59,6 +59,7 @@ require (
 	github.com/minio/kms-go/kes v0.3.1
 	github.com/minio/kms-go/kms v0.5.1-0.20250225090116-4e64ce8d0f35
 	github.com/minio/madmin-go/v3 v3.0.109
+	github.com/minio/mc v0.0.0-20250313080218-cf909e1063a9
 	github.com/minio/minio-go/v7 v7.0.91
 	github.com/minio/mux v1.9.2
 	github.com/minio/pkg/v3 v3.1.3
@@ -212,7 +213,6 @@ require (
 	github.com/minio/colorjson v1.0.8 // indirect
 	github.com/minio/crc64nvme v1.0.1 // indirect
 	github.com/minio/filepath v1.0.0 // indirect
-	github.com/minio/mc v0.0.0-20250313080218-cf909e1063a9 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/websocket v1.6.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
