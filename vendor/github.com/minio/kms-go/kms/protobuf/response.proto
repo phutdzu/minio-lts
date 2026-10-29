@@ -1,0 +1,298 @@
+// Copyright 2023 - MinIO, Inc. All rights reserved.
+// Use of this source code is governed by the AGPLv3
+// license that can be found in the LICENSE file.
+
+// Generate the Go protobuf code by running the protobuf compiler
+// from the repository root:
+//
+//   $ protoc -I=./kms/protobuf --go_out=. ./kms/protobuf/*.proto
+
+syntax = "proto3";
+
+package minio.kms;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+import "rule.proto";
+
+option go_package = "kms/protobuf";
+
+message ErrResponse {
+  string Message = 1 [json_name="message" ];
+}
+
+message VersionResponse {
+  // Version is the version of the KMS server. It's the timestamp of
+  // the latest commit formatted as 'yyyy-mm-ddThh-mm-ssZ'. For example,
+  // "2023-12-01T16-06-52Z"
+  string Version = 1 [ json_name="version" ];
+
+  // Commit is the commit ID of the most latest code change of the KMS
+  // server.
+  string Commit = 2  [ json_name="commit"  ];
+
+  // APIVersion is the API version supported by the KMS server.
+  // For example, "v1".
+  string APIVersion = 3 [ json_name="api_version" ];
+
+  // Host is the KMS server host or host:port. 
+  string Host = 4 [ json_name="host" ];
+
+  bool FIPS140 = 5 [ json_name="fips140" ];
+}
+
+message ServerStatusResponse {
+    // Version is the version of the KMS server. It's the timestamp of
+  // the latest commit formatted as 'yyyy-mm-ddThh-mm-ssZ'. For example,
+  // "2023-12-01T16-06-52Z"
+  string Version = 1 [ json_name="version" ];
+
+  // APIVersion is the API version supported by the KMS server.
+  // For example, "v1".
+  string APIVersion = 2 [ json_name="api_version" ];
+
+  // Host is the KMS server host or host:port. 
+  string Host = 3 [ json_name="host" ];
+
+  // UpTime is the amount of time the KMS server is up and running.
+  google.protobuf.Duration UpTime = 4 [ json_name="uptime" ];
+
+  // Role is the current role the KMS server node has within the cluster.
+  // Either, "Leader", "Follower" or "Candidate". 
+  string Role = 5 [ json_name="role" ];
+
+  // Commit is the number of state changes applied to this KMS server.
+  uint64 Commit = 6 [ json_name="commit" ];
+
+  // Nodes is a list of KMS server nodes within the KMS cluster as a map
+  // of node IDs to KMS server addresses of the form 'host' or 'host:port'. 
+  map<uint32,string> Nodes = 7 [ json_name="nodes" ];
+
+  // ID is the node ID of this KMS server. It only changes if the node
+  // joins a cluster.
+  uint32 ID = 8 [ json_name="node_id" ];
+
+  // LeaderID is the ID of the current cluster leader or negative if
+  // the cluster has no leader.
+  sint64 LeaderID = 9 [ json_name="leader_id" ];
+
+  // LastHeartbeat is the duration since the KMS server has sent or received
+  // a heartbeat. As long as there is a cluster leader, it should be lower
+  // than the ElectionTimeout.
+  google.protobuf.Duration LastHeartbeat = 10 [ json_name="last_heartbeat" ];
+  
+  // HeartbeatInterval defines the frequency in which this KMS server, as cluster
+  // leader, sends heartbeats to its follower nodes. All nodes within a cluster
+  // should use the same heartbeat interval.
+  google.protobuf.Duration HeartbeatInterval = 11 [ json_name="heartbeat_interval" ];
+
+  // ElectionTimeout defines how long a KMS server node waits for heartbeats before
+  // it considers the cluster leaders as down and starts a leader election to become
+  // the cluster leader itself.
+  // Each cluster node should have a slightly different election timeout to avoid
+  // spliting votes. Typically, base election timeout + random jitter. The average
+  // or base election timeout of all cluster nodes should be balanced with the
+  // HeartbeatInterval to prevent nodes from starting elections even though a leader
+  // is present. A reasonable default may be ElectionTimeout = 3 * HeartbeatInterval.
+  google.protobuf.Duration ElectionTimeout = 12 [ json_name="election_timeout" ]; 
+
+  // OS identifies the operating system the KMS server is running on.
+  // For example, "linux" or "darwin". 
+  string OS = 13 [ json_name="sys_os" ];
+
+  // Arch is the CPU architecture of the KMS server. For example, "amd64".
+  string Arch = 14 [ json_name="sys_cpu_arch" ];
+
+  // CPUs is the number of logical CPUs that can execite the KMS server process.
+  // However, the KMS server may not use all of these CPUs. It might be limited
+  // to fewer CPUs.
+  uint32 CPUs = 15 [ json_name="sys_cpu_num" ];
+  
+  // UsableCPUs is the number of CPUs actually used by the KMS server process.
+  // Unless the KMS server has been limited to fewer CPUs, equal to CPUs field.
+  uint32 UsableCPUs = 16 [ json_name="sys_cpu_used" ];
+
+  // HeapMemInUse is the amount of heap memory currently occupied by the KMS server.
+  // The total amount of memory used by the KMS server process is HeapMemInUse +
+  // StackMemInUse.
+  uint64 HeapMemInUse = 17 [ json_name="sys_mem_heap_used" ];
+  
+  // StackMemInUse is the amount of stack memory currently occupied by the KMS server.
+  // The total amount of memory used by the KMS server process is HeapMemInUse +
+  // StackMemInUse.
+  uint64 StackMemInUse = 18 [ json_name="sys_mem_stack_used" ];
+}
+
+message ProfileStatusResponse {
+   // Started is the point in time when profiling was enabled.
+   google.protobuf.Timestamp Started = 1 [ json_name = "started" ];
+
+   // CPU indicates whether the server is capturing a CPU profile.
+   bool CPU = 2 [ json_name = "cpu" ];
+
+   // Heap indicates whether the server is capturing a heap memory profile.
+   bool Heap = 3 [ json_name = "heap" ];
+
+   // Goroutine indicates whether the server is capturing a runtime go
+   // routine profile.
+   bool Goroutine = 4 [ json_name = "goroutine" ];
+
+   // Goroutine indicates whether the server is capturing a OS thread
+   // profile.
+   bool Thread = 5 [ json_name = "thread" ];
+
+   // BlockRate is the fraction of runtime blocking events, like a
+   // go routine getting blocked, collected by the server's block
+   // profile. On average, the server samples one blocking event per
+   // BlockRate nanoseconds spent blocked.
+   //
+   // If 0, block profiling is disabled.
+   uint32 BlockRate = 6 [ json_name = "block_rate" ];
+
+   // MutexFraction is the fraction of mutex contention events,
+   // like waiting to accquire a lock, collected by the server's
+   // mutex profile. On average, the server collects 1/MutexFraction
+   // events in its mutex profile.
+   //
+   // If 0, mutex profiling is disabled.
+   uint32 MutexFraction = 7 [ json_name = "mutex_frac" ];
+ }
+
+message ClusterStatusResponse {
+  map<uint32,ServerStatusResponse> NodesUp = 1 [ json_name="nodes_up" ];
+  map<uint32,string> NodesDown = 2 [ json_name="nodes_down" ];
+}
+
+message EnclaveStatusResponse {
+  // Name is the name of the enclave.
+  string Name = 1 [ json_name = "name" ];
+
+  // CreatedAt is the point in time when this enclave got created.
+  google.protobuf.Timestamp CreatedAt = 2 [ json_name = "created_at" ];
+
+  // CreatedBy is the identity that created this enclave.
+  string CreatedBy = 3 [ json_name = "created_by" ];
+}
+
+message ListEnclavesResponse {
+  repeated EnclaveStatusResponse Enclaves = 1 [ json_name = "enclaves" ];
+
+  string ContinueAt = 2 [ json_name = "continue_at" ];
+}
+
+message KeyStatusResponse {
+  // Name is the name of the key.
+  string Name = 1 [ json_name="name" ];
+
+  // Version is the this key's version within the key ring.
+  uint32 Version = 2 [ json_name="version" ];
+
+  // The is the key type. For example, "AES256".
+  string Type = 3 [ json_name="type" ];
+
+  // CreatedAt is the point in time when this key version got created.
+  google.protobuf.Timestamp CreatedAt = 4 [ json_name="created_at" ];
+
+  // CreatedBy is the identity that created the key version.
+  string CreatedBy = 5 [ json_name="created_by" ];
+}
+
+message ListKeysResponse {
+  repeated KeyStatusResponse Keys = 1 [ json_name = "keys" ];
+
+  string ContinueAt = 2 [ json_name = "continue_at" ];
+}
+
+message EncryptResponse {
+  // Version identifies the particular key within a key ring used to encrypt
+  // the message.
+  uint32 Version = 1 [ json_name = "version" ];
+
+  // Ciphertext is the encrypted message.
+  bytes Ciphertext = 2 [ json_name = "ciphertext" ];
+}
+
+message DecryptResponse {
+  // Plaintext is the decrypted message.
+  bytes Plaintext = 1 [ json_name = "plaintext" ];
+}
+
+message GenerateKeyResponse {
+  // Version identifies the particular key within a key ring used to generate
+  // and encrypt this data encryption key.
+  uint32 Version = 1 [ json_name = "version" ];
+
+  // Plaintext is the plain data encryption key. It may be used by clients to
+  // perform crypto. operations.
+  bytes Plaintext = 2 [ json_name = "plaintext"];
+
+  // Ciphertext is the encrypted data encryption key. Clients should store it
+  // to obtain the plain data encryption key in the future again.
+  bytes Ciphertext = 3 [ json_name = "ciphertext" ];
+}
+
+message PolicyStatusResponse {
+  // Name is the name of the policy.
+  string Name = 1 [ json_name = "name" ];
+
+  // CreatedAt is the point in time when this policy got created.
+  google.protobuf.Timestamp CreatedAt = 4 [ json_name="created_at" ];
+
+  // CreatedBy is the identity that created the policy.
+  string CreatedBy = 5 [ json_name="created_by" ];
+}
+
+message PolicyResponse {
+  // Name is the name of the policy.
+  string Name = 1 [ json_name = "name" ];
+
+  // Allow contains a set of API path patterns and corresponding policy rules.
+  // Requests that match at least one path, but not any deny pattern, and
+  // pass the corresponding policy rule are accepted by the server.
+  map<string, RuleSet> Allow = 2 [ json_name = "allow" ];
+
+  // Deny contains a set of API path patterns and corresponding policy rules.
+  // Requests that match at least one path and pass the corresponding policy
+  // rule are rejected by the server.
+  map<string, RuleSet> Deny = 3 [ json_name = "deny" ];
+
+  // CreatedAt is the point in time when this policy got created.
+  google.protobuf.Timestamp CreatedAt = 4 [ json_name="created_at" ];
+
+  // CreatedBy is the identity that created the policy.
+  string CreatedBy = 5 [ json_name="created_by" ];
+}
+
+message ListPoliciesResponse {
+  repeated PolicyStatusResponse Policies = 1 [ json_name = "policies" ];
+
+  string ContinueAt = 2 [ json_name = "continue_at" ];
+}
+
+message IdentityResponse {
+  string Identity = 1 [ json_name = "identity" ];
+
+  uint32 Privilege = 2 [ json_name = "privilege" ];
+
+  string Policy = 3 [ json_name = "policy" ];
+
+  // CreatedAt is the point in time when this identity got created.
+  google.protobuf.Timestamp CreatedAt = 4 [ json_name = "created_at" ];
+
+  // CreatedBy is the identity that created this identity.
+  string CreatedBy = 5 [ json_name = "created_by" ];
+
+  bool IsServiceAccount = 6 [ json_name = "is_service_account" ];
+
+  repeated string ServiceAccounts = 7 [ json_name = "service_accounts" ];
+
+  // Tags are optional metadata labels attached to the key as key-value pairs.
+  map<string,string> Tags = 8 [ json_name="tags" ];
+}
+
+message ListIdentitiesResponse {
+  repeated IdentityResponse Identities = 1 [ json_name = "identities" ];
+
+  string ContinueAt = 2 [ json_name = "continue_at" ];
+}
