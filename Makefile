@@ -5,7 +5,8 @@ LDFLAGS := $(shell go run buildscripts/gen-ldflags.go)
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
-VERSION ?= $(shell git describe --tags)
+# Fork releases are tagged FORK.<UTC commit time>, upstream RELEASE.* tags are ignored.
+VERSION ?= $(shell git describe --tags --match 'FORK.*' --always)
 REPO ?= quay.io/minio
 TAG ?= $(REPO)/minio:$(VERSION)
 

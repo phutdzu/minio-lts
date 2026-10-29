@@ -30,7 +30,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped (with rea
 - [x] 2.2 Remove/neutralise upstream minisign pubkey default in `cmd/update.go`
 - [x] 2.3 Disable callhome by default (`cmd/callhome.go`, `internal/config/callhome`)
 - [x] 2.4 Disable SUBNET license/registration (`internal/config/subnet`, `cmd/globals.go`)
-- [ ] 2.5 Define fork version scheme and update `buildscripts/gen-ldflags.go` / `cmd/build-constants.go`
+- [x] 2.5 Define fork version scheme and update `buildscripts/gen-ldflags.go` / `cmd/build-constants.go`
 - [ ] 2.6 Fix tests broken by 2.1-2.5 (`cmd/update_test.go`, `cmd/update-notifier_test.go`, ...)
 
 ## Phase 3 - Repo hygiene
@@ -71,3 +71,6 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped (with rea
 | 2026-10-29 | 1.x | Added `vendor/` to `.typos.toml` extend-exclude. After any dependency change: `go mod tidy && go mod vendor` and commit both. |
 | 2026-10-29 | 2.1/2.2 | `globalInplaceUpdateDisabled` is now always true (blocks startup update check + both admin `/update` handlers -> 405). `MinioReleaseBaseURL` and `defaultMinisignPubkey` emptied; `verifyBinary` fails closed without a pubkey. Added `TestInplaceUpdateDisabledByDefault`. `MINIO_UPDATE` env is now ignored. Unreachable leftovers kept: `getDownloadURL` still mentions `quay.io/minio/minio`. |
 | 2026-10-29 | 2.3/2.4 | Callhome and SUBNET were already off by default and inert without an API key. Hardened anyway: `callhomeSupported = false` (initCallhome never starts), enabling callhome via config is rejected, SUBNET `baseURL` emptied so requests cannot reach `subnet.min.io`. Tests: `TestCallhomeRejected`, `subnet.TestBaseURLIsEmpty`. `mc license register` and the console SUBNET UI now fail instead of contacting upstream. |
+| 2026-10-29 | 2.5 | Version scheme: official fork builds use `MINIO_RELEASE=FORK` -> `ReleaseTag=FORK.<UTC commit time>` (e.g. `FORK.2026-10-29T06-55-51Z`); local dev builds stay `DEVELOPMENT.<time>`. Fork git tags and image tags use the same `FORK.<time>` string. Makefile `VERSION` now uses `git describe --match 'FORK.*' --always` so the 523 upstream `RELEASE.*` tags are ignored. `Copyright ... MinIO, Inc.` kept on purpose (AGPL). |
+| 2026-10-29 | 2.x smoke | Built with `MINIO_RELEASE=FORK`, started a 1-drive server: health 200, console 200, no update message in log, no outbound sockets. Not covered: calling admin `/update` with a signed request (covered by unit logic only). |
+| 2026-10-29 | NOTE for 4.1 | `buildscripts/gen-ldflags.go` runs `git log` and exits 1 without `.git`; `.dockerignore` excludes `.git`. The Dockerfile build must receive ldflags/commit as build args (or keep `.git` in context). Also Makefile `REPO ?= quay.io/minio` must be repointed in Phase 4. |
