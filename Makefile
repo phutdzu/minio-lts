@@ -5,10 +5,14 @@ LDFLAGS := $(shell go run buildscripts/gen-ldflags.go)
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
-# Fork releases are tagged FORK.<UTC commit time>, upstream RELEASE.* tags are ignored.
-VERSION ?= $(shell git describe --tags --match 'FORK.*' --always)
-REPO ?= quay.io/minio
+# Fork releases are versioned FORK.<UTC commit time>, same string as the git tag
+# and the image tag. Upstream RELEASE.* tags are ignored.
+COMMIT_ID := $(shell git rev-parse HEAD)
+COMMIT_TIME := $(shell git log -1 --format=%cI)
+VERSION ?= FORK.$(shell TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%SZ)
+REPO ?= registry.gitlab.com/phucdzu-resource
 TAG ?= $(REPO)/minio:$(VERSION)
+PLATFORMS ?= linux/amd64,linux/arm64
 
 GOLANGCI_DIR = .bin/golangci/$(GOLANGCI_VERSION)
 GOLANGCI = $(GOLANGCI_DIR)/golangci-lint
@@ -180,6 +184,20 @@ build-debugging:
 build: checks build-debugging ## builds minio to $(PWD)
 	@echo "Building minio binary to './minio'"
 	@CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -tags kqueue -trimpath --ldflags "$(LDFLAGS)" -o $(PWD)/minio 1>/dev/null
+
+version: ## prints the fork version (FORK.<UTC commit time>), use it as the git tag
+	@echo $(VERSION)
+
+docker: ## builds the container image for the host platform
+	@echo "Building minio docker image '$(TAG)'"
+	@docker build --build-arg COMMIT_ID=$(COMMIT_ID) --build-arg COMMIT_TIME=$(COMMIT_TIME) -t $(TAG) .
+
+docker-multiarch: ## builds and pushes the multi-arch container image
+	@echo "Building and pushing multi-arch minio docker image '$(TAG)' for $(PLATFORMS)"
+	@docker buildx build --platform $(PLATFORMS) --build-arg COMMIT_ID=$(COMMIT_ID) --build-arg COMMIT_TIME=$(COMMIT_TIME) -t $(TAG) --push .
+
+release-binaries: ## builds release binaries and SHA256SUMS into ./dist
+	@bash buildscripts/build-release.sh
 
 test-resiliency: build
 	@echo "Running resiliency tests"

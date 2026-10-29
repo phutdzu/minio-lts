@@ -71,7 +71,13 @@ func releaseTag(version string) (string, time.Time) {
 }
 
 // commitID returns the abbreviated commit-id hash of the last commit.
+// MINIO_COMMIT_ID overrides it for builds without a .git directory,
+// for example inside a container build.
 func commitID() string {
+	if id := os.Getenv("MINIO_COMMIT_ID"); id != "" {
+		return id
+	}
+
 	// git log --format="%H" -n1
 	var (
 		commit []byte
@@ -87,7 +93,18 @@ func commitID() string {
 	return strings.TrimSpace(string(commit))
 }
 
+// commitTime returns the time of the last commit in UTC.
+// MINIO_COMMIT_TIME (RFC3339) overrides it, see commitID.
 func commitTime() time.Time {
+	if v := os.Getenv("MINIO_COMMIT_TIME"); v != "" {
+		t, err := time.Parse(time.RFC3339, v)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Invalid MINIO_COMMIT_TIME: ", err)
+			os.Exit(1)
+		}
+		return t.UTC()
+	}
+
 	// git log --format=%cD -n1
 	var (
 		commitUnix []byte
