@@ -1,12 +1,12 @@
 # MinIO Community Helm Chart
 
-[![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io) [![license](https://img.shields.io/badge/license-AGPL%20V3-blue)](https://github.com/minio/minio/blob/master/LICENSE)
+[![license](https://img.shields.io/badge/license-AGPL%20V3-blue)](../../LICENSE)
 
 MinIO is a High Performance Object Storage released under GNU Affero General Public License v3.0. It is API compatible with Amazon S3 cloud storage service. Use MinIO to build high performance infrastructure for machine learning, analytics and application data workloads.
 
 | IMPORTANT |
 | -------------------------- |
-| This Helm chart is community built, maintained, and supported. MinIO does not guarantee support for any given bug, feature request, or update referencing this chart. <br/><br/> MinIO publishes a separate [MinIO Kubernetes Operator and Tenant Helm Chart](https://github.com/minio/operator/tree/master/helm) that is officially maintained and supported. MinIO strongly recommends using the MinIO Kubernetes Operator for production deployments. See [Deploy Operator With Helm](https://docs.min.io/community/minio-object-store/operations/deployments/k8s-deploy-operator-helm-on-kubernetes.html?ref=github) for additional documentation. |
+| This Helm chart deploys the unofficial MinIO community fork built from this repository. It is community maintained, with no support guarantee. MinIO, Inc. publishes a separate [MinIO Kubernetes Operator and Tenant Helm Chart](https://github.com/minio/operator/tree/master/helm) for its own (non-fork) releases. |
 
 ## Introduction
 
@@ -18,18 +18,22 @@ This chart bootstraps MinIO Cluster on [Kubernetes](http://kubernetes.io) using 
 - PV provisioner support in the underlying infrastructure. (We recommend using <https://github.com/minio/direct-csi>)
 - Use Kubernetes version v1.19 and later for best experience.
 
-## Configure MinIO Helm repo
+## Get the chart
+
+The chart is not published to a Helm repository. Install it from a checkout of this repository (all commands below assume the repository root as the working directory), or package it first:
 
 ```bash
-helm repo add minio https://charts.min.io/
+helm package helm/minio        # creates minio-<chart version>.tgz
 ```
+
+The default images are `registry.gitlab.com/phucdzu-resource/minio` and `.../minio/mc`, built by this repository's CI (`make docker`, `make docker-mc` build them locally). For a private registry create a pull secret and set `imagePullSecrets`.
 
 ### Installing the Chart
 
 Install this chart using:
 
 ```bash
-helm install --namespace minio --set rootUser=rootuser,rootPassword=rootpass123 --generate-name minio/minio
+helm install --namespace minio --set rootUser=rootuser,rootPassword=rootpass123 --generate-name ./helm/minio
 ```
 
 The command deploys MinIO on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
@@ -39,7 +43,7 @@ The command deploys MinIO on the Kubernetes cluster in the default configuration
 Minimal toy setup for testing purposes can be deployed using:
 
 ```bash
-helm install --set resources.requests.memory=512Mi --set replicas=1 --set persistence.enabled=false --set mode=standalone --set rootUser=rootuser,rootPassword=rootpass123 --generate-name minio/minio
+helm install --set resources.requests.memory=512Mi --set replicas=1 --set persistence.enabled=false --set mode=standalone --set rootUser=rootuser,rootPassword=rootpass123 --generate-name ./helm/minio
 ```
 
 ### Upgrading the Chart
@@ -53,7 +57,7 @@ helm get values my-release > old_values.yaml
 Then change the field `image.tag` in `old_values.yaml` file with MinIO image tag you want to use. Now update the chart using
 
 ```bash
-helm upgrade -f old_values.yaml my-release minio/minio
+helm upgrade -f old_values.yaml my-release ./helm/minio
 ```
 
 Default upgrade strategies are specified in the `values.yaml` file. Update these fields if you'd like to use a different strategy.
@@ -65,7 +69,7 @@ Refer the [Values file](./values.yaml) for all the possible config fields.
 You can specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example,
 
 ```bash
-helm install --name my-release --set persistence.size=1Ti minio/minio
+helm install --name my-release --set persistence.size=1Ti ./helm/minio
 ```
 
 The above command deploys MinIO server with a 1Ti backing persistent volume.
@@ -73,7 +77,7 @@ The above command deploys MinIO server with a 1Ti backing persistent volume.
 Alternately, you can provide a YAML file that specifies parameter values while installing the chart. For example,
 
 ```bash
-helm install --name my-release -f values.yaml minio/minio
+helm install --name my-release -f values.yaml ./helm/minio
 ```
 
 ### Persistence
@@ -81,7 +85,7 @@ helm install --name my-release -f values.yaml minio/minio
 This chart provisions a PersistentVolumeClaim and mounts corresponding persistent volume to default location `/export`. You'll need physical storage available in the Kubernetes cluster for this to work. If you'd rather use `emptyDir`, disable PersistentVolumeClaim by:
 
 ```bash
-helm install --set persistence.enabled=false minio/minio
+helm install --set persistence.enabled=false ./helm/minio
 ```
 
 > *"An emptyDir volume is first created when a Pod is assigned to a Node, and exists as long as that Pod is running on that node. When a Pod is removed from a node for any reason, the data in the emptyDir is deleted forever."*
@@ -95,7 +99,7 @@ If a Persistent Volume Claim already exists, specify it during installation.
 3. Install the chart
 
 ```bash
-helm install --set persistence.existingClaim=PVC_NAME minio/minio
+helm install --set persistence.existingClaim=PVC_NAME ./helm/minio
 ```
 
 ### NetworkPolicy
@@ -134,7 +138,7 @@ kubectl create secret generic my-minio-secret --from-literal=rootUser=foobarbaz 
 Then install the chart, specifying that you want to use an existing secret:
 
 ```bash
-helm install --set existingSecret=my-minio-secret minio/minio
+helm install --set existingSecret=my-minio-secret ./helm/minio
 ```
 
 The following fields are expected in the secret:
@@ -157,7 +161,7 @@ kubectl create secret generic tls-ssl-minio --from-file=path/to/private.key --fr
 Then install the chart, specifying that you want to use the TLS secret:
 
 ```bash
-helm install --set tls.enabled=true,tls.certSecret=tls-ssl-minio minio/minio
+helm install --set tls.enabled=true,tls.certSecret=tls-ssl-minio ./helm/minio
 ```
 
 ### Installing certificates from third party CAs
@@ -191,7 +195,7 @@ or
 Install the chart, specifying the buckets you want to create after install:
 
 ```bash
-helm install --set buckets[0].name=bucket1,buckets[0].policy=none,buckets[0].purge=false minio/minio
+helm install --set buckets[0].name=bucket1,buckets[0].policy=none,buckets[0].purge=false ./helm/minio
 ```
 
 Description of the configuration parameters used above -
@@ -205,7 +209,7 @@ Description of the configuration parameters used above -
 Install the chart, specifying the policies you want to create after install:
 
 ```bash
-helm install --set policies[0].name=mypolicy,policies[0].statements[0].resources[0]='arn:aws:s3:::bucket1',policies[0].statements[0].actions[0]='s3:ListBucket',policies[0].statements[0].actions[1]='s3:GetObject' minio/minio
+helm install --set policies[0].name=mypolicy,policies[0].statements[0].resources[0]='arn:aws:s3:::bucket1',policies[0].statements[0].actions[0]='s3:ListBucket',policies[0].statements[0].actions[1]='s3:GetObject' ./helm/minio
 ```
 
 Description of the configuration parameters used above -
@@ -220,7 +224,7 @@ Description of the configuration parameters used above -
 Install the chart, specifying the users you want to create after install:
 
 ```bash
-helm install --set users[0].accessKey=accessKey,users[0].secretKey=secretKey,users[0].policy=none,users[1].accessKey=accessKey2,users[1].secretRef=existingSecret,users[1].secretKey=password,users[1].policy=none minio/minio
+helm install --set users[0].accessKey=accessKey,users[0].secretKey=secretKey,users[0].policy=none,users[1].accessKey=accessKey2,users[1].secretRef=existingSecret,users[1].secretKey=password,users[1].policy=none ./helm/minio
 ```
 
 Description of the configuration parameters used above -
@@ -236,7 +240,7 @@ Description of the configuration parameters used above -
 Install the chart, specifying the service accounts you want to create after install:
 
 ```bash
-helm install --set svcaccts[0].accessKey=accessKey,svcaccts[0].secretKey=secretKey,svcaccts[0].user=parentUser,svcaccts[1].accessKey=accessKey2,svcaccts[1].secretRef=existingSecret,svcaccts[1].secretKey=password,svcaccts[1].user=parentUser2 minio/minio
+helm install --set svcaccts[0].accessKey=accessKey,svcaccts[0].secretKey=secretKey,svcaccts[0].user=parentUser,svcaccts[1].accessKey=accessKey2,svcaccts[1].secretRef=existingSecret,svcaccts[1].secretKey=password,svcaccts[1].user=parentUser2 ./helm/minio
 ```
 
 Description of the configuration parameters used above -

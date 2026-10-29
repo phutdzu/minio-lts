@@ -1,18 +1,18 @@
 apiVersion: v1
 description: High Performance Object Storage
 name: minio
-version: 5.4.0
-appVersion: RELEASE.2024-12-18T13-15-44Z
+version: 5.5.0
+appVersion: latest
 keywords:
   - minio
   - storage
   - object-storage
   - s3
   - cluster
-home: https://min.io
-icon: https://min.io/resources/img/logo/MINIO_wordmark.png
+home: https://gitlab.com/phucdzu-resource/minio
 sources:
+- https://gitlab.com/phucdzu-resource/minio
 - https://github.com/minio/minio
 maintainers:
-- name: MinIO, Inc
-  email: dev@minio.io
+- name: MinIO community fork maintainers
+  url: https://gitlab.com/phucdzu-resource/minio
