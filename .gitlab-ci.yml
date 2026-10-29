@@ -1,0 +1,197 @@
+# GitLab CI for the MinIO community fork.
+#
+# - merge requests / default branch: verify + cross compile + image build check
+# - default branch: also pushes the `edge` image
+# - tag FORK.<UTC commit time>: binaries to the package registry, multi-arch
+#   image to the container registry, GitLab release
+#
+# Create a release tag with:  git tag "$(make -s version)" && git push origin --tags
+#
+# Jobs marked `allow_failure` have not been proven green on a runner yet,
+# remove the flag once they are.
+
+stages:
+  - verify
+  - build
+  - package
+  - release
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+variables:
+  GO_VERSION: "1.24"
+  # Everything builds offline from the vendored sources.
+  GOFLAGS: "-mod=vendor"
+  GOPROXY: "off"
+  GOTOOLCHAIN: "local"
+  GOCACHE: "$CI_PROJECT_DIR/.cache/go-build"
+  PACKAGE_URL: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/minio/${CI_COMMIT_TAG}"
+
+default:
+  image: golang:${GO_VERSION}
+  interruptible: true
+  cache:
+    key: go-build-${GO_VERSION}
+    paths:
+      - .cache/go-build
+
+# ---------------------------------------------------------------- verify
+
+# go.mod, go.sum and vendor/ must be in sync, and nothing in vendor/ may be
+# hidden by .gitignore.
+vendor-check:
+  stage: verify
+  variables:
+    GOFLAGS: ""
+    GOPROXY: "https://proxy.golang.org,direct"
+  script:
+    - go mod tidy
+    - go mod vendor
+    - test -z "$(git status --porcelain --ignored go.mod go.sum vendor)" || { git status --short --ignored go.mod go.sum vendor | head -20; echo "go.mod/go.sum/vendor are out of sync, run 'go mod tidy && go mod vendor' and commit"; exit 1; }
+
+# Release tags must match the commit time so that the version baked into the
+# binary (FORK.<UTC commit time>) equals the tag.
+verify-tag:
+  stage: verify
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - expected="FORK.$(date -u -d "${CI_COMMIT_TIMESTAMP}" +%Y-%m-%dT%H-%M-%SZ)"
+    - test "${CI_COMMIT_TAG}" = "${expected}" || { echo "tag ${CI_COMMIT_TAG} must be ${expected}"; exit 1; }
+
+lint:
+  stage: verify
+  image: golangci/golangci-lint:v2.5.0
+  allow_failure: true
+  script:
+    - golangci-lint run --build-tags kqueue --timeout=20m --config ./.golangci.yml
+
+unit-test:
+  stage: verify
+  timeout: 1h
+  variables:
+    CGO_ENABLED: "0"
+    MINIO_API_REQUESTS_MAX: "10000"
+  script:
+    - go test -tags kqueue,dev -timeout 40m ./...
+
+govulncheck:
+  stage: verify
+  allow_failure: true
+  script:
+    - GOFLAGS= GOPROXY=https://proxy.golang.org,direct go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+    - $(go env GOPATH)/bin/govulncheck ./...
+
+helm-lint:
+  stage: verify
+  image:
+    name: alpine/helm:3.17.0
+    entrypoint: [""]
+  allow_failure: true
+  script:
+    - helm lint helm/minio
+
+# ----------------------------------------------------------------- build
+
+# Cross compiles every supported platform; on tags the result is published.
+binaries:
+  stage: build
+  variables:
+    CGO_ENABLED: "0"
+  script:
+    - bash buildscripts/build-release.sh
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+
+# --------------------------------------------------------------- package
+
+# Merge requests only check that the image builds, branches and tags push it.
+image:
+  stage: package
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - echo "${CI_REGISTRY_PASSWORD}" | docker login -u "${CI_REGISTRY_USER}" --password-stdin "${CI_REGISTRY}"
+    - docker buildx create --use --name multiarch --driver docker-container
+  script:
+    - |
+      TAGS=""
+      PUSH=""
+      if [ -n "${CI_COMMIT_TAG}" ]; then
+        TAGS="-t ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG} -t ${CI_REGISTRY_IMAGE}:latest"
+        PUSH="--push"
+      elif [ "${CI_COMMIT_BRANCH}" = "${CI_DEFAULT_BRANCH}" ]; then
+        TAGS="-t ${CI_REGISTRY_IMAGE}:edge -t ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+        PUSH="--push"
+      fi
+      docker buildx build \
+        --platform linux/amd64,linux/arm64 \
+        --build-arg COMMIT_ID="${CI_COMMIT_SHA}" \
+        --build-arg COMMIT_TIME="${CI_COMMIT_TIMESTAMP}" \
+        ${TAGS} ${PUSH} .
+
+# --------------------------------------------------------------- release
+
+upload-binaries:
+  stage: release
+  image: curlimages/curl:8.11.1
+  rules:
+    - if: $CI_COMMIT_TAG
+  needs:
+    - job: binaries
+      artifacts: true
+    - job: verify-tag
+  script:
+    - |
+      for f in dist/*; do
+        echo "uploading ${f}"
+        curl --fail --silent --show-error --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "${f}" "${PACKAGE_URL}/$(basename "${f}")"
+      done
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+  needs:
+    - upload-binaries
+    - image
+  script:
+    - echo "Creating release ${CI_COMMIT_TAG}"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: $CI_COMMIT_TAG
+    description: |
+      Unofficial MinIO community fork, version `${CI_COMMIT_TAG}`.
+
+      Container image (linux/amd64, linux/arm64): `${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG}`
+
+      Verify downloads with `SHA256SUMS`. Licensed under AGPLv3, source is this repository at the tagged commit.
+    assets:
+      links:
+        - name: SHA256SUMS
+          url: "${PACKAGE_URL}/SHA256SUMS"
+        - name: minio-linux-amd64
+          url: "${PACKAGE_URL}/minio-linux-amd64"
+        - name: minio-linux-arm64
+          url: "${PACKAGE_URL}/minio-linux-arm64"
+        - name: minio-linux-ppc64le
+          url: "${PACKAGE_URL}/minio-linux-ppc64le"
+        - name: minio-darwin-amd64
+          url: "${PACKAGE_URL}/minio-darwin-amd64"
+        - name: minio-darwin-arm64
+          url: "${PACKAGE_URL}/minio-darwin-arm64"
+        - name: minio-windows-amd64.exe
+          url: "${PACKAGE_URL}/minio-windows-amd64.exe"
