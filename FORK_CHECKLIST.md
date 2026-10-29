@@ -31,7 +31,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped (with rea
 - [x] 2.3 Disable callhome by default (`cmd/callhome.go`, `internal/config/callhome`)
 - [x] 2.4 Disable SUBNET license/registration (`internal/config/subnet`, `cmd/globals.go`)
 - [x] 2.5 Define fork version scheme and update `buildscripts/gen-ldflags.go` / `cmd/build-constants.go`
-- [ ] 2.6 Fix tests broken by 2.1-2.5 (`cmd/update_test.go`, `cmd/update-notifier_test.go`, ...)
+- [x] 2.6 Fix tests broken by 2.1-2.5 (`cmd/update_test.go`, `cmd/update-notifier_test.go`, ...)
 
 ## Phase 3 - Repo hygiene
 
@@ -58,6 +58,15 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped (with rea
 - [x] 5.2 Decide on `mc` image source (separate upstream repo)
 - [x] 5.3 Replace hardcoded `docs.min.io` / `play.min.io` / `slack.min.io` text in code
 - [x] 5.4 Recurring security routine: `govulncheck`, Go patch upgrades, dependency bumps
+
+## Phase 6 - Open items found on re-check (2026-10-29)
+
+- [ ] 6.1 Integration scripts still download upstream artifacts and would break if `dl.min.io` goes away: `buildscripts/minio-iam-ldap-upgrade-import-test.sh` (old minio binary), `docs/site-replication/run-*.sh` (4 scripts, `mc` binary). Point them at our `mc` binary / image or at a release of this fork before porting those suites to CI.
+- [ ] 6.2 `docs/orchestration/docker-compose/docker-compose.yaml`, `docs/site-replication/ldap.yaml` and `docs/docker/README.md` use `quay.io/minio/*` images.
+- [ ] 6.3 `cmd/update.go` `getDownloadURL` still returns `podman pull quay.io/minio/minio:<tag>` (unreachable, update is disabled).
+- [ ] 6.4 `TestTrackingResponseWriter` fails on Go 1.26, unconfirmed on Go 1.24 (needs a machine with more than 3GB RAM).
+- [ ] 6.5 First pipeline run on GitLab: fix red jobs, then drop `allow_failure` from `lint` and `govulncheck`.
+- [ ] 6.6 Publish the first `FORK.<time>` tag, create the weekly pipeline schedule, install the Helm chart on a real cluster.
 
 ## Log
 
@@ -107,3 +116,4 @@ All used Go `1.24.x` on ubuntu. Run order suggestion: lint/test first, slow suit
 | 2026-10-29 | 5.2 | `mc` source: instead of depending on a separate `minio/mc` image, `tools/mc/main.go` builds the already vendored `github.com/minio/mc/cmd` (go.mod: mc moved from indirect to direct, vendor unchanged). Dockerfile has targets `mc` and `minio` (default); `make docker-mc`; `build-release.sh` also emits `mc-<os>-<arch>`; CI builds and pushes `$CI_REGISTRY_IMAGE/mc`. Verified: 54MB image, `mc --version` = `FORK.<time>`, and the chart's own commands (`alias set`, `mb`, `pipe`, `ls`, `admin info`) work against a fork server over a Docker network. mc's startup update check is off because it only runs for `RELEASE.*` tags; explicit `mc update` still targets `dl.min.io` (not removed). |
 | 2026-10-29 | 5.3 | Replaced the misleading "Please contact MinIO at https://slack.min.io" error text. Left `docs.min.io` links (informational) and the `play.min.io` example comment. Also ran `gofmt` on `internal/config/subnet/config_test.go` (Phase 2 file with a stray blank line). |
 | 2026-10-29 | 5.4 | Added `MAINTENANCE.md`: weekly scheduled pipeline (govulncheck + image rebuild), monthly Go patch bump, dependency fix procedure, base image, release steps, what to review if upstream resumes. The GitLab schedule itself still has to be created in the UI. `helm-lint` CI job is no longer `allow_failure` (ran green locally). |
+| 2026-10-29 | re-check | Working tree clean, 16 commits on `fork/cleanup` since `7aac2a2c5`, `go build ./...`, `go vet` and gofmt clean, vendor in sync (8541 files tracked, 0 ignored), fork tests pass, CI yaml parses (10 jobs, `allow_failure` only on `lint` and `govulncheck`). Fixed: 2.6 was still unchecked although done. Found: Phase 6 items above. |
