@@ -1,5 +1,5 @@
 [files]
-extend-exclude = [".git/", "docs/", "CREDITS", "go.mod", "go.sum"]
+extend-exclude = [".git/", "vendor/", "docs/", "CREDITS", "go.mod", "go.sum"]
 ignore-hidden = false
 
 [default]
