@@ -341,3 +341,22 @@ func TestParseReleaseData(t *testing.T) {
 		}
 	}
 }
+
+// This fork must never contact the upstream release server or accept
+// unsigned binaries.
+func TestInplaceUpdateDisabledByDefault(t *testing.T) {
+	if !globalInplaceUpdateDisabled {
+		t.Fatal("in-place update must be disabled in this fork")
+	}
+	if MinioReleaseBaseURL != "" {
+		t.Fatalf("MinioReleaseBaseURL must not point at an upstream server, got %q", MinioReleaseBaseURL)
+	}
+	if defaultMinisignPubkey != "" {
+		t.Fatal("upstream minisign public key must not be embedded")
+	}
+	t.Setenv(envMinisignPubKey, "")
+	u, _ := url.Parse("https://example.invalid/minio")
+	if err := verifyBinary(u, nil, "RELEASE.2000-01-01T00-00-00Z", "", strings.NewReader("")); err == nil {
+		t.Fatal("verifyBinary must fail without a minisign public key")
+	}
+}

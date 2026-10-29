@@ -556,8 +556,10 @@ func downloadBinary(u *url.URL, mode string) (binCompressed []byte, bin []byte, 
 }
 
 const (
-	// Update this whenever the official minisign pubkey is rotated.
-	defaultMinisignPubkey = "RWTx5Zr1tiHQLwG9keckT0c45M3AGeHD6IvimQHpyRywVWGbP1aVSGav"
+	// Minisign pubkey used to verify update binaries. Empty on purpose: the
+	// upstream key was removed and verification fails closed until a fork
+	// key is configured (MINIO_UPDATE_MINISIGN_PUBKEY).
+	defaultMinisignPubkey = ""
 )
 
 func verifyBinary(u *url.URL, sha256Sum []byte, releaseInfo, mode string, reader io.Reader) (err error) {
@@ -581,18 +583,23 @@ func verifyBinary(u *url.URL, sha256Sum []byte, releaseInfo, mode string, reader
 	}
 
 	minisignPubkey := env.Get(envMinisignPubKey, defaultMinisignPubkey)
-	if minisignPubkey != "" {
-		v := selfupdate.NewVerifier()
-		u.Path = path.Dir(u.Path) + slashSeparator + releaseInfo + ".minisig"
-		if err = v.LoadFromURL(u.String(), minisignPubkey, transport); err != nil {
-			return AdminError{
-				Code:       AdminUpdateApplyFailure,
-				Message:    fmt.Sprintf("signature loading failed for %v with %v", u, err),
-				StatusCode: http.StatusInternalServerError,
-			}
+	if minisignPubkey == "" {
+		return AdminError{
+			Code:       AdminUpdateApplyFailure,
+			Message:    "no minisign public key configured, refusing to apply an unsigned update",
+			StatusCode: http.StatusInternalServerError,
 		}
-		opts.Verifier = v
 	}
+	v := selfupdate.NewVerifier()
+	u.Path = path.Dir(u.Path) + slashSeparator + releaseInfo + ".minisig"
+	if err = v.LoadFromURL(u.String(), minisignPubkey, transport); err != nil {
+		return AdminError{
+			Code:       AdminUpdateApplyFailure,
+			Message:    fmt.Sprintf("signature loading failed for %v with %v", u, err),
+			StatusCode: http.StatusInternalServerError,
+		}
+	}
+	opts.Verifier = v
 
 	if err = selfupdate.PrepareAndCheckBinary(reader, opts); err != nil {
 		var pathErr *os.PathError

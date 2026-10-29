@@ -26,8 +26,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped (with rea
 
 ## Phase 2 - Cut ties to MinIO infrastructure (code)
 
-- [ ] 2.1 Disable self-update (`cmd/build-constants.go` `MinioReleaseBaseURL`, `cmd/update.go`, `cmd/update-notifier.go`, `cmd/server-main.go` update check)
-- [ ] 2.2 Remove/neutralise upstream minisign pubkey default in `cmd/update.go`
+- [x] 2.1 Disable self-update (`cmd/build-constants.go` `MinioReleaseBaseURL`, `cmd/update.go`, `cmd/update-notifier.go`, `cmd/server-main.go` update check)
+- [x] 2.2 Remove/neutralise upstream minisign pubkey default in `cmd/update.go`
 - [ ] 2.3 Disable callhome by default (`cmd/callhome.go`, `internal/config/callhome`)
 - [ ] 2.4 Disable SUBNET license/registration (`internal/config/subnet`, `cmd/globals.go`)
 - [ ] 2.5 Define fork version scheme and update `buildscripts/gen-ldflags.go` / `cmd/build-constants.go`
@@ -69,3 +69,4 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped (with rea
 | 2026-10-29 | 1.x checks | `go mod verify` OK; `go mod tidy` no diff; offline build OK for linux/{amd64,arm64}, windows/amd64, darwin/amd64, freebsd/amd64; `go vet ./cmd/ ./internal/...` clean. |
 | 2026-10-29 | 1.x gotcha | `.gitignore` patterns `mc` and `xattr` were unanchored and silently ignored `vendor/github.com/minio/mc` and `vendor/github.com/pkg/xattr` (384 files). Anchored all bare binary names to repo root (`/mc`, `/xattr`, ...). Always check `git ls-files --others --ignored --exclude-standard vendor` is empty after `go mod vendor`. |
 | 2026-10-29 | 1.x | Added `vendor/` to `.typos.toml` extend-exclude. After any dependency change: `go mod tidy && go mod vendor` and commit both. |
+| 2026-10-29 | 2.1/2.2 | `globalInplaceUpdateDisabled` is now always true (blocks startup update check + both admin `/update` handlers -> 405). `MinioReleaseBaseURL` and `defaultMinisignPubkey` emptied; `verifyBinary` fails closed without a pubkey. Added `TestInplaceUpdateDisabledByDefault`. `MINIO_UPDATE` env is now ignored. Unreachable leftovers kept: `getDownloadURL` still mentions `quay.io/minio/minio`. |

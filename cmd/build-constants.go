@@ -50,7 +50,9 @@ var (
 	minioOSARCH = runtime.GOOS + "-" + runtime.GOARCH
 
 	// MinioReleaseBaseURL - release url without os and arch.
-	MinioReleaseBaseURL = "https://dl.min.io/server/minio/release/"
+	// Empty on purpose: in-place update is disabled in this fork, so no
+	// release server is contacted. Set this if a fork release server exists.
+	MinioReleaseBaseURL = ""
 
 	// MinioReleaseURL - release URL.
 	MinioReleaseURL = MinioReleaseBaseURL + minioOSARCH + SlashSeparator
