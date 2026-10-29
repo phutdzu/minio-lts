@@ -1,42 +1,27 @@
 # Security Policy
 
-## Supported Versions
+## Supported versions
 
-We always provide security updates for the [latest release](https://github.com/minio/minio/releases/latest).
-Whenever there is a security update you just need to upgrade to the latest version.
+Only the latest `FORK.<time>` release of this fork receives security fixes. Upstream MinIO no longer publishes fixes, so nothing is inherited from it.
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
-All security bugs in [minio/minio](https://github,com/minio/minio) (or other minio/* repositories)
-should be reported by email to security@min.io. Your email will be acknowledged within 48 hours,
-and you'll receive a more detailed response to your email within 72 hours indicating the next steps
-in handling your report.
+Please do not report security problems in public issues or merge requests.
 
-Please, provide a detailed explanation of the issue. In particular, outline the type of the security
-issue (DoS, authentication bypass, information disclose, ...) and the assumptions you're making (e.g. do
-you need access credentials for a successful exploit).
+Open a **confidential issue** in this GitLab project (tick "This issue is confidential") and include:
 
-If you have not received a reply to your email within 48 hours or you have not heard from the security team
-for the past five days please contact the security team directly:
+- the type of issue (DoS, authentication bypass, information disclosure, ...),
+- affected version (`minio --version`) and configuration,
+- steps to reproduce, and whether credentials are needed to exploit it.
 
-- Primary security coordinator: aead@min.io
-- Secondary coordinator: harsha@min.io
-- If you receive no response: dev@min.io
+## Handling process
 
-### Disclosure Process
+1. A maintainer reproduces the report and assesses the impact.
+2. The report is confirmed or rejected with an explanation.
+3. The code is audited for similar problems.
+4. A fix is prepared and released as a new `FORK.<time>` version.
+5. An advisory is added to the release notes. Reporters are credited only if they ask for it.
 
-MinIO uses the following disclosure process:
+## Dependencies
 
-1. Once the security report is received one member of the security team tries to verify and reproduce
-   the issue and determines the impact it has.
-2. A member of the security team will respond and either confirm or reject the security report.
-   If the report is rejected the response explains why.
-3. Code is audited to find any potential similar problems.
-4. Fixes are prepared for the latest release.
-5. On the date that the fixes are applied a security advisory will be published on <https://blog.min.io>.
-   Please inform us in your report email whether MinIO should mention your contribution w.r.t. fixing
-   the security issue. By default MinIO will **not** publish this information to protect your privacy.
-
-This process can take some time, especially when coordination is required with maintainers of other projects.
-Every effort will be made to handle the bug in as timely a manner as possible, however it's important that we
-follow the process described above to ensure that disclosures are handled consistently.
+The dependency tree is vendored. Known vulnerabilities in dependencies are tracked with `govulncheck ./...` and fixed by upgrading the module and re-running `go mod tidy && go mod vendor`.

@@ -35,14 +35,14 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped (with rea
 
 ## Phase 3 - Repo hygiene
 
-- [ ] 3.1 Remove dead Dockerfiles (`Dockerfile`, `.release`, `.release.old_cpu`, `.hotfix`, `.cicd`), `docker-buildx.sh`
-- [ ] 3.2 Remove Makefile targets that depend on them (`hotfix*`, `docker-hotfix*`, old `docker`)
-- [ ] 3.3 Archive then remove `.github/` (list jobs worth porting to GitLab CI first)
-- [ ] 3.4 Remove Helm repo leftovers: `helm-releases/`, `index.yaml`, `helm-reindex.sh`
-- [ ] 3.5 Remove site leftovers: `CNAME`, `_config.yml`, `update-credits.sh`, `.mailmap`
-- [ ] 3.6 Rewrite `README.md` (fork purpose, build, upstream origin + commit, AGPLv3)
-- [ ] 3.7 Rewrite/trim `CONTRIBUTING.md`, `PULL_REQUESTS_ETIQUETTE.md`, `SECURITY.md`, `VULNERABILITY_REPORT.md`, `code_of_conduct.md`
-- [ ] 3.8 Check `LICENSE`/`NOTICE`/`CREDITS` kept intact (AGPLv3 obligations)
+- [x] 3.1 Remove dead Dockerfiles (`Dockerfile`, `.release`, `.release.old_cpu`, `.hotfix`, `.cicd`), `docker-buildx.sh`
+- [x] 3.2 Remove Makefile targets that depend on them (`hotfix*`, `docker-hotfix*`, old `docker`)
+- [x] 3.3 Archive then remove `.github/` (list jobs worth porting to GitLab CI first)
+- [x] 3.4 Remove Helm repo leftovers: `helm-releases/`, `index.yaml`, `helm-reindex.sh`
+- [x] 3.5 Remove site leftovers: `CNAME`, `_config.yml` (`update-credits.sh` and `.mailmap` kept on purpose, see log)
+- [x] 3.6 Rewrite `README.md` (fork purpose, build, upstream origin + commit, AGPLv3)
+- [x] 3.7 Rewrite/trim `CONTRIBUTING.md`, `PULL_REQUESTS_ETIQUETTE.md`, `SECURITY.md`, `VULNERABILITY_REPORT.md`, `code_of_conduct.md`
+- [x] 3.8 Check `LICENSE`/`NOTICE`/`CREDITS` kept intact (AGPLv3 obligations)
 
 ## Phase 4 - Build artifacts (after repo is clean)
 
@@ -75,3 +75,25 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped (with rea
 | 2026-10-29 | 2.x smoke | Built with `MINIO_RELEASE=FORK`, started a 1-drive server: health 200, console 200, no update message in log, no outbound sockets. Not covered: calling admin `/update` with a signed request (covered by unit logic only). |
 | 2026-10-29 | NOTE for 4.1 | `buildscripts/gen-ldflags.go` runs `git log` and exits 1 without `.git`; `.dockerignore` excludes `.git`. The Dockerfile build must receive ldflags/commit as build args (or keep `.git` in context). Also Makefile `REPO ?= quay.io/minio` must be repointed in Phase 4. |
 | 2026-10-29 | 2.6 | Full `go test ./cmd/` (210s): only `TestTrackingResponseWriter` fails. It also fails on the untouched upstream commit `7aac2a2c5` with the same message (Go 1.26 net/http no longer allows a body for that status), so it is a pre-existing toolchain issue, not caused by Phase 2. TODO: fix test or pin Go 1.24 in CI. |
+| 2026-10-29 | 3.1/3.2 | Removed `Dockerfile`, `.cicd`, `.hotfix`, `.release`, `.release.old_cpu`, `docker-buildx.sh` (all pulled upstream images/binaries) and Makefile targets `hotfix*`, `docker-hotfix*`, `docker`. Kept `Dockerfile.scratch` and `dockerscripts/` (entrypoint, static curl) as inputs for 4.1. `VERSION/REPO/TAG` Makefile vars kept for 4.x. |
+| 2026-10-29 | 3.3 | Removed `.github/` (still in git history at `61c6f5319`, e.g. `git show 61c6f5319:.github/workflows/go-lint.yml`). Job map to port in 4.4 below. |
+| 2026-10-29 | 3.4/3.5 | Removed `helm-releases/`, `index.yaml`, `helm-reindex.sh`, `CNAME`, `_config.yml`. Kept `update-credits.sh` (regenerates `CREDITS`, needed to keep license credits current) and `.mailmap` (clean `git shortlog` attribution). |
+| 2026-10-29 | 3.6-3.8 | Rewrote `README.md`, `CONTRIBUTING.md`, `SECURITY.md`; removed `PULL_REQUESTS_ETIQUETTE.md`, `VULNERABILITY_REPORT.md`, `COMPLIANCE.md` (upstream-specific); `code_of_conduct.md` contact changed to confidential GitLab issue; `NOTICE` got a fork note appended. `LICENSE`, `CREDITS` and original `NOTICE` text untouched (AGPLv3). README states the fork is unofficial/not affiliated. `docs/` is still upstream text (describes removed features), left as is. |
+
+### CI jobs to port to `.gitlab-ci.yml` (from the removed GitHub workflows)
+
+All used Go `1.24.x` on ubuntu. Run order suggestion: lint/test first, slow suites on schedule or manual.
+
+| Priority | GitHub workflow | What it ran | Notes |
+|---|---|---|---|
+| must | `go-lint.yml` | `make test`, `make test-race` | Known failing test `TestTrackingResponseWriter` on Go 1.26, pin Go 1.24 or fix the test |
+| must | `vulncheck.yml` | `govulncheck -show verbose ./...` | Core of the security routine (5.4) |
+| must | `go-cross.yml` | `make crosscompile` | Cheap build matrix check |
+| should | `typos.yml`, `shfmt.yml` | spelling, shell format | `vendor/` already excluded from typos |
+| should | `helm-lint.yml` | `helm lint` on `helm/minio` | Keep, chart is retained |
+| should | `go.yml` | `make verify`, `make test-timeout` | Functional tests |
+| later | `go-healing.yml` | `make verify-healing*` (4 targets) | Slow |
+| later | `replication.yaml` | `make test-decom/ilm/pbac/configfile/replication/site-replication-minio` | Slow, needs docker-less setup |
+| later | `go-resiliency.yml` | `make test-resiliency` | Needs docker + built image |
+| later | `iam-integrations.yaml`, `root-disable.yml`, `upgrade-ci-cd.yaml` | `make test-iam`, `test-root-disable`, `test-upgrade` | IAM needs LDAP/etcd/dex service containers from `quay.io/minio/*` which may be gone |
+| drop | `mint.yml`, `depsreview.yaml`, `issues.yaml`, `lock.yml`, `stale.yml` | mint S3 compat (needs `minio/mint` image + built image), GitHub dependency review, issue bots | Mint worth revisiting after 4.x if `minio/mint` still pulls |
