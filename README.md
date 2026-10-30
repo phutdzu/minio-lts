@@ -26,7 +26,7 @@ Progress and decisions are tracked in [FORK_CHECKLIST.md](FORK_CHECKLIST.md).
 
 ## Build
 
-Requirements: Go 1.24 or newer (see `go.mod`). No network access is needed, `vendor/` is used automatically.
+Requirements: Go 1.26 or newer (see `go.mod`). No network access is needed, `vendor/` is used automatically.
 
 ```sh
 # local development build, version shows as DEVELOPMENT.<time>
@@ -119,7 +119,7 @@ make verifiers   # lint + generated-file check
 make test        # build, lint and unit tests
 ```
 
-After changing dependencies always run `go mod tidy && go mod vendor` and commit `go.mod`, `go.sum` and `vendor/` together.
+After changing dependencies always run `go mod tidy -e && go mod vendor` and commit `go.mod`, `go.sum` and `vendor/` together.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and [MAINTENANCE.md](MAINTENANCE.md) (recurring security and upgrade routine).
 

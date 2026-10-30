@@ -17,7 +17,7 @@ cd minio
 make build
 ```
 
-Go 1.24 or newer is required. Dependencies are vendored, no network is needed to build.
+Go 1.26 or newer is required. Dependencies are vendored, no network is needed to build.
 
 ## Checks before a pull request
 
@@ -29,13 +29,12 @@ go test ./cmd/ -run <TestName> -count=1   # a single test
 
 Some end-to-end suites (`make verify-healing`, `make test-replication`, `make test-iam`, ...) need extra tooling and are slow, run the ones related to the code you touched.
 
-Known failure: `TestTrackingResponseWriter` fails with Go 1.26 and is unrelated to your change, see [FORK_CHECKLIST.md](FORK_CHECKLIST.md).
 
 ## Dependencies
 
 ```sh
 go get <module>@<version>
-go mod tidy
+go mod tidy -e   # -e: a test-only import of github.com/go-openapi/swag is unresolvable upstream
 go mod vendor
 ```
 

@@ -14,7 +14,7 @@
 # Targets: `minio` (default, the server) and `mc` (the client used by the Helm
 # chart's post-install job, built from the vendored github.com/minio/mc).
 
-ARG GO_VERSION=1.24
+ARG GO_VERSION=1.26
 ARG ALPINE_VERSION=3.22
 
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS build
