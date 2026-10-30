@@ -28,7 +28,7 @@ imagePullSecrets: []
 ##
 ## Built from this repository as the `mc` image target (see the root README).
 mcImage:
-  repository: ghcr.io/phutdzu/minio-fork/mc
+  repository: ghcr.io/phutdzu/minio-fork-mc
   tag: latest
   pullPolicy: Always
 

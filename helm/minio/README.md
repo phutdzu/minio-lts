@@ -26,7 +26,7 @@ The chart is not published to a Helm repository. Install it from a checkout of t
 helm package helm/minio        # creates minio-<chart version>.tgz
 ```
 
-The default images are `ghcr.io/phutdzu/minio-fork` and `ghcr.io/phutdzu/minio-fork/mc`, built by this repository's CI (`make docker`, `make docker-mc` build them locally). For a private registry create a pull secret and set `imagePullSecrets`.
+The default images are `ghcr.io/phutdzu/minio-fork` and `ghcr.io/phutdzu/minio-fork-mc`, built by this repository's CI (`make docker`, `make docker-mc` build them locally). For a private registry create a pull secret and set `imagePullSecrets`.
 
 ### Installing the Chart
 

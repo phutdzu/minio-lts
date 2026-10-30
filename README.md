@@ -110,7 +110,7 @@ mc ls local/data
 
 ## Kubernetes
 
-A community Helm chart lives in [`helm/minio`](helm/minio). It defaults to the images built by this repository (`ghcr.io/phutdzu/minio-fork` and `ghcr.io/phutdzu/minio-fork/mc`) and is installed from a checkout, see the [chart README](helm/minio/README.md). Pin `image.tag` to a released `FORK.<time>` version in production.
+A community Helm chart lives in [`helm/minio`](helm/minio). It defaults to the images built by this repository (`ghcr.io/phutdzu/minio-fork` and `ghcr.io/phutdzu/minio-fork-mc`) and is installed from a checkout, see the [chart README](helm/minio/README.md). Pin `image.tag` to a released `FORK.<time>` version in production.
 
 ## Development
 

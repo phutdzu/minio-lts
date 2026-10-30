@@ -128,7 +128,7 @@ jobs:
           retention-days: 7
 
   # Builds the server image (ghcr.io/<owner>/<repo>) and the mc client image
-  # (ghcr.io/<owner>/<repo>/mc). Pull requests only check
+  # (ghcr.io/<owner>/<repo>-mc). Pull requests only check
   # that they build, main (push and schedule) and tags push them.
   image:
     runs-on: ubuntu-latest
@@ -164,7 +164,7 @@ jobs:
               ${TAGS} ${PUSH} .
           }
           build minio "${IMAGE}"
-          build mc "${IMAGE}/mc"
+          build mc "${IMAGE}-mc"
 
   release:
     if: github.ref_type == 'tag'
@@ -185,7 +185,7 @@ jobs:
           cat > notes.md <<NOTES
           Unofficial MinIO community fork, version \`${GITHUB_REF_NAME}\`.
 
-          Container images (linux/amd64, linux/arm64): \`${IMAGE}:${GITHUB_REF_NAME}\` and the client \`${IMAGE}/mc:${GITHUB_REF_NAME}\`
+          Container images (linux/amd64, linux/arm64): \`${IMAGE}:${GITHUB_REF_NAME}\` and the client \`${IMAGE}-mc:${GITHUB_REF_NAME}\`
 
           Verify downloads with \`SHA256SUMS\`. Licensed under AGPLv3, source is this repository at the tagged commit.
           NOTES
