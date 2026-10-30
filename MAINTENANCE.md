@@ -11,7 +11,7 @@ The weekly `schedule` trigger in `.github/workflows/ci.yml` (Mondays 03:00 UTC, 
 | Weekly (scheduled workflow) | `govulncheck` job, read the result, fix anything reachable |
 | Monthly | Bump the Go patch version, rebuild, cut a release if anything changed |
 | On a published CVE for a dependency | Upgrade that module, see below |
-| Before every release tag | CI green on `master`, `make version` matches the tag |
+| Before every release tag | CI green on `main`, `make version` matches the tag |
 
 The jobs `lint` and `govulncheck` in `.github/workflows/ci.yml` are `continue-on-error: true` until they have run green once. After that remove the flag so that they gate merges.
 
@@ -44,7 +44,7 @@ Go patch releases carry most of the standard library security fixes (`net/http`,
 ## Release
 
 ```sh
-git checkout master && git pull
+git checkout main && git pull
 git tag "$(make -s version)"
 git push origin --tags
 ```

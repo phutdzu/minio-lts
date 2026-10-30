@@ -4,7 +4,7 @@ This is a self-maintained fork, changes are made through pull requests on GitHub
 
 ## Workflow
 
-1. Create a branch from `master`, one topic per branch.
+1. Create a branch from `main`, one topic per branch.
 2. Keep each commit focused and explain the **why** in the message.
 3. Run the checks below locally.
 4. Open a pull request, describe the change and how you tested it.

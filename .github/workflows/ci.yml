@@ -1,10 +1,10 @@
 # GitHub Actions for the MinIO community fork.
 #
-# - pull requests / master: verify + cross compile + image build check
-# - master: also pushes the `edge` image to GHCR
+# - pull requests / main: verify + cross compile + image build check
+# - main: also pushes the `edge` image to GHCR
 # - tag FORK.<UTC commit time>: multi-arch image to GHCR, binaries and
 #   SHA256SUMS in a GitHub release
-# - weekly schedule on master: verification (catches new vulnerabilities) and a
+# - weekly schedule on main: verification (catches new vulnerabilities) and a
 #   rebuilt `edge` image (picks up new Alpine patch releases)
 #
 # Create a release tag with:  git tag "$(make -s version)" && git push origin --tags
@@ -17,7 +17,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [master]
+    branches: [main]
     tags: ["FORK.*"]
   schedule:
     - cron: "0 3 * * 1"
@@ -133,7 +133,7 @@ jobs:
 
   # Builds the server image (ghcr.io/<owner>/<repo>) and the mc client image
   # (ghcr.io/<owner>/<repo>/mc). Pull requests only check
-  # that they build, master (push and schedule) and tags push them.
+  # that they build, main (push and schedule) and tags push them.
   image:
     runs-on: ubuntu-latest
     permissions:
@@ -156,7 +156,7 @@ jobs:
             if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_EVENT_NAME}" = "push" ]; then
               TAGS="-t $2:${GITHUB_REF_NAME} -t $2:latest"
               PUSH="--push"
-            elif [ "${GITHUB_REF}" = "refs/heads/master" ] && [ "${GITHUB_EVENT_NAME}" != "pull_request" ] && [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]; then
+            elif [ "${GITHUB_REF}" = "refs/heads/main" ] && [ "${GITHUB_EVENT_NAME}" != "pull_request" ] && [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]; then
               TAGS="-t $2:edge -t $2:${GITHUB_SHA::8}"
               PUSH="--push"
             fi
