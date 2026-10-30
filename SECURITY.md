@@ -6,9 +6,9 @@ Only the latest `FORK.<time>` release of this fork receives security fixes. Upst
 
 ## Reporting a vulnerability
 
-Please do not report security problems in public issues or merge requests.
+Please do not report security problems in public issues or pull requests.
 
-Open a **confidential issue** in this GitLab project (tick "This issue is confidential") and include:
+Use GitHub **private vulnerability reporting** (the "Security" tab, "Report a vulnerability") of this repository and include:
 
 - the type of issue (DoS, authentication bypass, information disclosure, ...),
 - affected version (`minio --version`) and configuration,

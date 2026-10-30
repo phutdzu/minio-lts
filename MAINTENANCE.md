@@ -4,16 +4,16 @@ Upstream MinIO is archived, so nothing flows in from it: security fixes, Go and 
 
 ## Schedule
 
-Create a **GitLab pipeline schedule** (CI/CD > Schedules) on `master`, weekly. A scheduled pipeline runs the same jobs as a push and therefore also rebuilds and pushes the `edge` images, which picks up new Alpine patch releases.
+The weekly `schedule` trigger in `.github/workflows/ci.yml` (Mondays 03:00 UTC, default branch) needs no setup. It runs the same jobs as a push and therefore also rebuilds and pushes the `edge` images, which picks up new Alpine patch releases. GitHub disables scheduled workflows after 60 days without repository activity, re-enable it under Actions if that happens.
 
 | When | What |
 |---|---|
-| Weekly (scheduled pipeline) | `govulncheck` job, read the result, fix anything reachable |
+| Weekly (scheduled workflow) | `govulncheck` job, read the result, fix anything reachable |
 | Monthly | Bump the Go patch version, rebuild, cut a release if anything changed |
 | On a published CVE for a dependency | Upgrade that module, see below |
-| Before every release tag | Pipeline green on `master`, `make version` matches the tag |
+| Before every release tag | CI green on `master`, `make version` matches the tag |
 
-The jobs `lint` and `govulncheck` in `.gitlab-ci.yml` are `allow_failure: true` until they have run green once. After that remove the flag so that they gate merges.
+The jobs `lint` and `govulncheck` in `.github/workflows/ci.yml` are `continue-on-error: true` until they have run green once. After that remove the flag so that they gate merges.
 
 ## Fix a vulnerable dependency
 
@@ -25,13 +25,13 @@ git ls-files --others --ignored --exclude-standard vendor   # must print nothing
 go build ./... && go test ./internal/... 
 ```
 
-Commit `go.mod`, `go.sum` and `vendor/` together, in one commit that names the CVE. The `vendor-check` job fails the merge request if they are out of sync.
+Commit `go.mod`, `go.sum` and `vendor/` together, in one commit that names the CVE. The `vendor-check` job fails the pull request if they are out of sync.
 
 Modules under `github.com/minio/*` (`madmin-go`, `minio-go`, `pkg`, `console`, `mc`, ...) live in separate upstream repositories that may no longer get fixes. If a vulnerable one has no fixed release, patch it here: `replace` it with a patched fork in `go.mod` and vendor that.
 
 ## Upgrade Go
 
-1. Change `GO_VERSION` in the `Dockerfile` (`ARG GO_VERSION`) and in `.gitlab-ci.yml` (`variables.GO_VERSION`).
+1. Change `GO_VERSION` in the `Dockerfile` (`ARG GO_VERSION`) and in `.github/workflows/ci.yml` (`env.GO_VERSION`).
 2. Change `go` / `toolchain` in `go.mod` only if the minimum language version must move.
 3. `go mod tidy && go mod vendor`, run the tests, rebuild the image.
 
@@ -49,7 +49,7 @@ git tag "$(make -s version)"
 git push origin --tags
 ```
 
-The tag pipeline publishes the multi-arch images, binaries with `SHA256SUMS`, and the GitLab release. Bump `version` in `helm/minio/Chart.yaml` when the chart itself changed.
+The tag workflow publishes the multi-arch images to GHCR, binaries with `SHA256SUMS`, and the GitHub release. Bump `version` in `helm/minio/Chart.yaml` when the chart itself changed.
 
 ## If upstream ever resumes
 

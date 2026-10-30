@@ -1,0 +1,200 @@
+# GitHub Actions for the MinIO community fork.
+#
+# - pull requests / master: verify + cross compile + image build check
+# - master: also pushes the `edge` image to GHCR
+# - tag FORK.<UTC commit time>: multi-arch image to GHCR, binaries and
+#   SHA256SUMS in a GitHub release
+# - weekly schedule on master: verification (catches new vulnerabilities) and a
+#   rebuilt `edge` image (picks up new Alpine patch releases)
+#
+# Create a release tag with:  git tag "$(make -s version)" && git push origin --tags
+#
+# Jobs with `continue-on-error` have not been proven green on a runner yet,
+# remove the flag once they are.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+    tags: ["FORK.*"]
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+env:
+  GO_VERSION: "1.24"
+  # Everything builds offline from the vendored sources.
+  GOFLAGS: -mod=vendor
+  GOPROXY: "off"
+  GOTOOLCHAIN: local
+
+jobs:
+  # go.mod, go.sum and vendor/ must be in sync, and nothing in vendor/ may be
+  # hidden by .gitignore.
+  vendor-check:
+    runs-on: ubuntu-latest
+    env:
+      GOFLAGS: ""
+      GOPROXY: https://proxy.golang.org,direct
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: |
+          go mod tidy
+          go mod vendor
+          if [ -n "$(git status --porcelain --ignored go.mod go.sum vendor)" ]; then
+            git status --short --ignored go.mod go.sum vendor | head -20
+            echo "go.mod/go.sum/vendor are out of sync, run 'go mod tidy && go mod vendor' and commit"
+            exit 1
+          fi
+
+  # Release tags must match the commit time so that the version baked into the
+  # binary (FORK.<UTC commit time>) equals the tag.
+  verify-tag:
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          expected="FORK.$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%SZ)"
+          test "${GITHUB_REF_NAME}" = "${expected}" || { echo "tag ${GITHUB_REF_NAME} must be ${expected}"; exit 1; }
+
+  lint:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.5.0
+          args: --build-tags kqueue --timeout=20m --config ./.golangci.yml
+
+  unit-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CGO_ENABLED: "0"
+      MINIO_API_REQUESTS_MAX: "10000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: go test -tags kqueue,dev -timeout 40m ./...
+
+  govulncheck:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: |
+          GOFLAGS= GOPROXY=https://proxy.golang.org,direct go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          "$(go env GOPATH)/bin/govulncheck" ./...
+
+  helm-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: helm lint helm/minio
+
+  # Cross compiles every supported platform; on tags the result is published.
+  binaries:
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: bash buildscripts/build-release.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  # Builds the server image (ghcr.io/<owner>/<repo>) and the mc client image
+  # (ghcr.io/<owner>/<repo>/mc). Pull requests only check
+  # that they build, master (push and schedule) and tags push them.
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request' && github.event_name != 'workflow_dispatch'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          COMMIT_ID="$(git rev-parse HEAD)"
+          COMMIT_TIME="$(git log -1 --format=%cI)"
+          build() { # build <target> <image>
+            TAGS=""
+            PUSH=""
+            if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+              TAGS="-t $2:${GITHUB_REF_NAME} -t $2:latest"
+              PUSH="--push"
+            elif [ "${GITHUB_REF}" = "refs/heads/master" ] && [ "${GITHUB_EVENT_NAME}" != "pull_request" ] && [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]; then
+              TAGS="-t $2:edge -t $2:${GITHUB_SHA::8}"
+              PUSH="--push"
+            fi
+            docker buildx build \
+              --target "$1" \
+              --platform linux/amd64,linux/arm64 \
+              --build-arg COMMIT_ID="${COMMIT_ID}" \
+              --build-arg COMMIT_TIME="${COMMIT_TIME}" \
+              ${TAGS} ${PUSH} .
+          }
+          build minio "${IMAGE}"
+          build mc "${IMAGE}/mc"
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: [verify-tag, binaries, image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          cat > notes.md <<NOTES
+          Unofficial MinIO community fork, version \`${GITHUB_REF_NAME}\`.
+
+          Container images (linux/amd64, linux/arm64): \`${IMAGE}:${GITHUB_REF_NAME}\` and the client \`${IMAGE}/mc:${GITHUB_REF_NAME}\`
+
+          Verify downloads with \`SHA256SUMS\`. Licensed under AGPLv3, source is this repository at the tagged commit.
+          NOTES
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file notes.md \
+            --verify-tag

@@ -1,13 +1,13 @@
 # Contributing
 
-This is a self-maintained fork, changes are made through merge requests on GitLab.
+This is a self-maintained fork, changes are made through pull requests on GitHub.
 
 ## Workflow
 
 1. Create a branch from `master`, one topic per branch.
 2. Keep each commit focused and explain the **why** in the message.
 3. Run the checks below locally.
-4. Open a merge request, describe the change and how you tested it.
+4. Open a pull request, describe the change and how you tested it.
 
 ## Setup
 
@@ -19,7 +19,7 @@ make build
 
 Go 1.24 or newer is required. Dependencies are vendored, no network is needed to build.
 
-## Checks before a merge request
+## Checks before a pull request
 
 ```sh
 make verifiers          # golangci-lint + generated-file check

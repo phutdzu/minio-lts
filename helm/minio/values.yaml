@@ -13,10 +13,10 @@ clusterDomain: cluster.local
 ## Set default image, imageTag, and imagePullPolicy. mode is used to indicate the
 ##
 ## Built from this repository, see the root README. Pin `tag` to a released
-## FORK.<time> version in production. A private GitLab project needs an
+## FORK.<time> version in production. A private package needs an
 ## image pull secret, see `imagePullSecrets`.
 image:
-  repository: registry.gitlab.com/phucdzu-resource/minio
+  repository: ghcr.io/phutdzu/minio-fork
   tag: latest
   pullPolicy: Always
 
@@ -28,7 +28,7 @@ imagePullSecrets: []
 ##
 ## Built from this repository as the `mc` image target (see the root README).
 mcImage:
-  repository: registry.gitlab.com/phucdzu-resource/minio/mc
+  repository: ghcr.io/phutdzu/minio-fork/mc
   tag: latest
   pullPolicy: Always
 

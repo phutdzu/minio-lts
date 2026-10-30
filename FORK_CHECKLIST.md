@@ -1,6 +1,6 @@
 # Fork cleanup checklist
 
-Tracking file for turning the archived upstream `minio/minio` source into a self-maintained fork hosted on GitLab.
+Tracking file for turning the archived upstream `minio/minio` source into a self-maintained fork, hosted on GitHub (`phutdzu/minio-fork`) since 2026-10-30 (GitLab was the first target).
 Base commit: `7aac2a2c5` (upstream master, 2026-02-12). Work branch: `fork/cleanup`.
 
 Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped (with reason)
@@ -49,8 +49,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` skipped (with rea
 - [x] 4.1 New multi-stage `Dockerfile` building from source
 - [x] 4.2 Multi-arch image (amd64/arm64) build
 - [x] 4.3 Binary builds for linux/amd64, linux/arm64 (+ others as needed), with checksums
-- [~] 4.4 `.gitlab-ci.yml`: lint, test, govulncheck, build binaries, build+push image
-- [~] 4.5 Publish to GitLab Container Registry / Package Registry
+- [~] 4.4 `.github/workflows/ci.yml` (was `.gitlab-ci.yml`): lint, test, govulncheck, build binaries, build+push image
+- [~] 4.5 Publish to GHCR (`ghcr.io/phutdzu/minio-fork`) and GitHub Releases
 
 ## Phase 5 - Helm & later
 
@@ -117,3 +117,4 @@ All used Go `1.24.x` on ubuntu. Run order suggestion: lint/test first, slow suit
 | 2026-10-29 | 5.3 | Replaced the misleading "Please contact MinIO at https://slack.min.io" error text. Left `docs.min.io` links (informational) and the `play.min.io` example comment. Also ran `gofmt` on `internal/config/subnet/config_test.go` (Phase 2 file with a stray blank line). |
 | 2026-10-29 | 5.4 | Added `MAINTENANCE.md`: weekly scheduled pipeline (govulncheck + image rebuild), monthly Go patch bump, dependency fix procedure, base image, release steps, what to review if upstream resumes. The GitLab schedule itself still has to be created in the UI. `helm-lint` CI job is no longer `allow_failure` (ran green locally). |
 | 2026-10-29 | re-check | Working tree clean, 16 commits on `fork/cleanup` since `7aac2a2c5`, `go build ./...`, `go vet` and gofmt clean, vendor in sync (8541 files tracked, 0 ignored), fork tests pass, CI yaml parses (10 jobs, `allow_failure` only on `lint` and `govulncheck`). Fixed: 2.6 was still unchecked although done. Found: Phase 6 items above. |
+| 2026-10-30 | move to GitHub | Decision: GitHub instead of GitLab (free unlimited CI and anonymous GHCR pulls for public repos, larger community). Repo `git@github.com:phutdzu/minio-fork.git`. `.gitlab-ci.yml` replaced by `.github/workflows/ci.yml` with the same jobs (vendor-check, verify-tag, lint, unit-test, govulncheck, helm-lint, binaries, image, release); `lint` and `govulncheck` are `continue-on-error`. Images: `ghcr.io/phutdzu/minio-fork` and `ghcr.io/phutdzu/minio-fork/mc` (Makefile `REPO`, Helm values, README, `org.opencontainers.image.source` label). Binaries and `SHA256SUMS` go to the GitHub release. Weekly schedule is built into the workflow (also rebuilds `edge`). SECURITY.md/code_of_conduct.md now use GitHub private vulnerability reporting. **Workflow never run, nothing pushed yet.** Manual steps after the first push: enable Actions write permission, enable private vulnerability reporting, make the GHCR packages public (first push creates them private) and link them to the repo, protect tags `FORK.*`. |

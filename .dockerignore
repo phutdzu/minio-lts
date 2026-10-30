@@ -17,5 +17,4 @@ docs/debugging/pprofgoparser/pprofgoparser
 docs/debugging/reorder-disks/reorder-disks
 /minio
 dist
-.gitlab-ci.yml
 FORK_CHECKLIST.md

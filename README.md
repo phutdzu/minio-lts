@@ -65,27 +65,27 @@ make docker             # image for your host platform
 make docker-multiarch   # linux/amd64 + linux/arm64, pushed with docker buildx
 ```
 
-The image is tagged `registry.gitlab.com/phucdzu-resource/minio:FORK.<time>` (override with `REPO=` or `TAG=`). Run it like any MinIO image:
+The image is tagged `ghcr.io/phutdzu/minio-fork:FORK.<time>` (override with `REPO=` or `TAG=`). Run it like any MinIO image:
 
 ```sh
 docker run -p 9000:9000 -p 9001:9001 \
   -e MINIO_ROOT_USER=admin -e MINIO_ROOT_PASSWORD=change-me-please \
   -v minio-data:/data \
-  registry.gitlab.com/phucdzu-resource/minio:latest server /data --console-address :9001
+  ghcr.io/phutdzu/minio-fork:latest server /data --console-address :9001
 ```
 
 Differences from the upstream image: no `mc` and no `curl` inside, runs as root like upstream (use `--user` or a Kubernetes `securityContext` to drop privileges), the deprecated `MINIO_USERNAME` user switching is not supported.
 
 ### Releases and CI
 
-[`.gitlab-ci.yml`](.gitlab-ci.yml) verifies vendoring, lints, tests, cross compiles and builds the image on every merge request. A release is a tag named after the commit time:
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) verifies vendoring, lints, tests, cross compiles and builds the image on every pull request. A release is a tag named after the commit time:
 
 ```sh
 git tag "$(make -s version)"    # e.g. FORK.2026-10-29T08-55-58Z
 git push origin --tags
 ```
 
-The tag pipeline pushes the multi-arch image and `:latest`, uploads the binaries and `SHA256SUMS` to the package registry, and creates a GitLab release.
+The tag workflow pushes the multi-arch image and `:latest` to GHCR and creates a GitHub release with the binaries and `SHA256SUMS`.
 
 ## Run
 
@@ -110,7 +110,7 @@ mc ls local/data
 
 ## Kubernetes
 
-A community Helm chart lives in [`helm/minio`](helm/minio). It defaults to the images built by this repository (`registry.gitlab.com/phucdzu-resource/minio` and `.../minio/mc`) and is installed from a checkout, see the [chart README](helm/minio/README.md). Pin `image.tag` to a released `FORK.<time>` version in production.
+A community Helm chart lives in [`helm/minio`](helm/minio). It defaults to the images built by this repository (`ghcr.io/phutdzu/minio-fork` and `ghcr.io/phutdzu/minio-fork/mc`) and is installed from a checkout, see the [chart README](helm/minio/README.md). Pin `image.tag` to a released `FORK.<time>` version in production.
 
 ## Development
 
