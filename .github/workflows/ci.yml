@@ -9,8 +9,6 @@
 #
 # Create a release tag with:  git tag "$(make -s version)" && git push origin --tags
 #
-# Jobs with `continue-on-error` have not been proven green on a runner yet,
-# remove the flag once they are.
 
 name: CI
 
@@ -72,7 +70,6 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -98,7 +95,6 @@ jobs:
 
   govulncheck:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

@@ -13,7 +13,7 @@ The weekly `schedule` trigger in `.github/workflows/ci.yml` (Mondays 03:00 UTC, 
 | On a published CVE for a dependency | Upgrade that module, see below |
 | Before every release tag | CI green on `main`, `make version` matches the tag |
 
-The jobs `lint` and `govulncheck` in `.github/workflows/ci.yml` are `continue-on-error: true` until they have run green once. After that remove the flag so that they gate merges.
+The `lint` and `govulncheck` jobs gate merges. A new CVE can turn `govulncheck` red without any code change: fix it by upgrading the module or the Go version, see below.
 
 ## Fix a vulnerable dependency
 
