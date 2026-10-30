@@ -4,7 +4,7 @@ Upstream MinIO is archived, so nothing flows in from it: security fixes, Go and 
 
 ## Schedule
 
-The weekly `schedule` trigger in `.github/workflows/ci.yml` (Mondays 03:00 UTC, default branch) needs no setup. It runs the same jobs as a push and therefore also rebuilds and pushes the `edge` images, which picks up new Alpine patch releases. GitHub disables scheduled workflows after 60 days without repository activity, re-enable it under Actions if that happens.
+The weekly `schedule` trigger in `.github/workflows/ci.yml` (Mondays 03:00 UTC, default branch) needs no setup. It runs the same checks as a push (including `govulncheck`, which is what catches newly published CVEs). It does not build or publish anything. GitHub disables scheduled workflows after 60 days without repository activity, re-enable it under Actions if that happens.
 
 | When | What |
 |---|---|
@@ -39,7 +39,7 @@ Go patch releases carry most of the standard library security fixes (`net/http`,
 
 ## Base image
 
-`ALPINE_VERSION` in the `Dockerfile` is the runtime base. Rebuild regularly (the weekly schedule does) and move to the next Alpine release before the current one reaches end of life.
+`ALPINE_VERSION` in the `Dockerfile` is the runtime base. Every release rebuilds on the current `alpine:<ALPINE_VERSION>` image, so cut a release when Alpine publishes security fixes, and move to the next Alpine release before the current one reaches end of life.
 
 ## Release
 

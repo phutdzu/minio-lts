@@ -78,14 +78,14 @@ Differences from the upstream image: no `mc` and no `curl` inside, runs as root 
 
 ### Releases and CI
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) verifies vendoring, lints, tests, cross compiles and builds the image on every pull request. A release is a tag named after the commit time:
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the checks (vendoring, lint, unit tests, `govulncheck`, `helm lint`) on every pull request and every push to `main`. Nothing is built or published by those runs. A release is a tag named after the commit time, tag a commit that is already green on `main`:
 
 ```sh
 git tag "$(make -s version)"    # e.g. FORK.2026-10-29T08-55-58Z
 git push origin --tags
 ```
 
-The tag workflow pushes the multi-arch image and `:latest` to GHCR and creates a GitHub release with the binaries and `SHA256SUMS`.
+The tag workflow then builds the binaries and the multi-arch images, pushes the images (`:FORK.<time>` and `:latest`) to GHCR and creates a GitHub release with the binaries and `SHA256SUMS`.
 
 ## Run
 
