@@ -43,13 +43,17 @@ Go patch releases carry most of the standard library security fixes (`net/http`,
 
 ## Release
 
+Check that the last commit on `main` is green, then on GitHub open Actions > CI > Run workflow, pick branch `main`, tick **release** and run it. The workflow refuses to run from another branch or when that commit already has a release.
+
+Terminal alternative, same result:
+
 ```sh
 git checkout main && git pull
 git tag "$(make -s version)"
 git push origin --tags
 ```
 
-The tag workflow publishes the multi-arch images to GHCR, binaries with `SHA256SUMS`, and the GitHub release. Bump `version` in `helm/minio/Chart.yaml` when the chart itself changed.
+The workflow publishes the multi-arch images to GHCR and the GitHub release with binaries and `SHA256SUMS`, the tag `FORK.<UTC commit time>` is created by the release step. Bump `version` in `helm/minio/Chart.yaml` when the chart itself changed.
 
 ## If upstream ever resumes
 

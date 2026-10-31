@@ -11,8 +11,8 @@ COMMIT_ID := $(shell git rev-parse HEAD)
 COMMIT_TIME := $(shell git log -1 --format=%cI)
 VERSION ?= FORK.$(shell TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%SZ)
 REPO ?= ghcr.io/phutdzu
-TAG ?= $(REPO)/minio-fork:$(VERSION)
-MC_TAG ?= $(REPO)/minio-fork-mc:$(VERSION)
+TAG ?= $(REPO)/minio-lts-server:$(VERSION)
+MC_TAG ?= $(REPO)/minio-lts-client:$(VERSION)
 PLATFORMS ?= linux/amd64,linux/arm64
 
 GOLANGCI_DIR = .bin/golangci/$(GOLANGCI_VERSION)

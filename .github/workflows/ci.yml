@@ -2,11 +2,12 @@
 #
 # - pull requests / push to main / weekly schedule: checks only (vendor-check,
 #   lint, unit-test, govulncheck, helm-lint). Nothing is built or published.
-# - tag FORK.<UTC commit time>: builds and publishes. Multi-arch images to
-#   GHCR, binaries and SHA256SUMS in a GitHub release. The checks do not run
-#   again, tag a commit that is already green on main.
-#
-# Create a release tag with:  git tag "$(make -s version)" && git push origin --tags
+# - release: builds and publishes. Multi-arch images to GHCR, binaries and
+#   SHA256SUMS in a GitHub release. The checks do not run again, release a
+#   commit that is already green on main. Two ways to start one:
+#     * Actions > CI > Run workflow > branch main, tick "release". The tag
+#       FORK.<UTC commit time> is created by the workflow after the build.
+#     * push a tag by hand:  git tag "$(make -s version)" && git push origin --tags
 
 name: CI
 
@@ -18,13 +19,19 @@ on:
   schedule:
     - cron: "0 3 * * 1"
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Publish a release from main (the tag FORK.<commit time> is created automatically)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+  group: ci-${{ github.ref }}-${{ github.event_name }}
+  # A release must never be cancelled by a later push.
+  cancel-in-progress: ${{ github.ref_type != 'tag' && github.event_name != 'workflow_dispatch' }}
 
 env:
   GO_VERSION: "1.26"
@@ -37,7 +44,8 @@ jobs:
   # go.mod, go.sum and vendor/ must be in sync, and nothing in vendor/ may be
   # hidden by .gitignore.
   vendor-check:
-    if: github.ref_type != 'tag'
+    needs: plan
+    if: needs.plan.outputs.release != 'true'
     runs-on: ubuntu-latest
     env:
       GOFLAGS: ""
@@ -56,19 +64,39 @@ jobs:
             exit 1
           fi
 
-  # Release tags must match the commit time so that the version baked into the
-  # binary (FORK.<UTC commit time>) equals the tag.
-  verify-tag:
-    if: github.ref_type == 'tag'
+  # Decides whether this run is a release and which tag it publishes. The tag
+  # is FORK.<UTC commit time> so that the version baked into the binary equals
+  # the tag.
+  plan:
     runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.plan.outputs.release }}
+      tag: ${{ steps.plan.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          expected="FORK.$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%SZ)"
-          test "${GITHUB_REF_NAME}" = "${expected}" || { echo "tag ${GITHUB_REF_NAME} must be ${expected}"; exit 1; }
+      - id: plan
+        env:
+          INPUT_RELEASE: ${{ inputs.release }}
+        run: |
+          tag="FORK.$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%SZ)"
+          release=false
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            release=true
+            test "${GITHUB_REF_NAME}" = "${tag}" || { echo "tag ${GITHUB_REF_NAME} must be ${tag}"; exit 1; }
+          elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ "${INPUT_RELEASE}" = "true" ]; then
+            release=true
+            test "${GITHUB_REF}" = "refs/heads/main" || { echo "releases are cut from main only"; exit 1; }
+            if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+              echo "release ${tag} already exists, there is no new commit to release"
+              exit 1
+            fi
+          fi
+          echo "release=${release}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
 
   lint:
-    if: github.ref_type != 'tag'
+    needs: plan
+    if: needs.plan.outputs.release != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,7 +109,8 @@ jobs:
           args: --build-tags kqueue --timeout=20m --config ./.golangci.yml
 
   unit-test:
-    if: github.ref_type != 'tag'
+    needs: plan
+    if: needs.plan.outputs.release != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -95,7 +124,8 @@ jobs:
       - run: go test -tags kqueue,dev -timeout 40m ./...
 
   govulncheck:
-    if: github.ref_type != 'tag'
+    needs: plan
+    if: needs.plan.outputs.release != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -107,7 +137,8 @@ jobs:
           "$(go env GOPATH)/bin/govulncheck" ./...
 
   helm-lint:
-    if: github.ref_type != 'tag'
+    needs: plan
+    if: needs.plan.outputs.release != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -115,7 +146,8 @@ jobs:
 
   # Cross compiles every supported platform, the release job publishes them.
   binaries:
-    if: github.ref_type == 'tag'
+    needs: plan
+    if: needs.plan.outputs.release == 'true'
     runs-on: ubuntu-latest
     env:
       CGO_ENABLED: "0"
@@ -131,11 +163,12 @@ jobs:
           path: dist/
           retention-days: 7
 
-  # Builds and pushes the server image (ghcr.io/<owner>/<repo>) and the mc
-  # client image (ghcr.io/<owner>/<repo>-mc), tagged with the release tag and
-  # `latest`.
+  # Builds and pushes the server image (ghcr.io/<owner>/<repo>-server) and the
+  # mc client image (ghcr.io/<owner>/<repo>-client), tagged with the release tag
+  # and `latest`.
   image:
-    if: github.ref_type == 'tag'
+    needs: plan
+    if: needs.plan.outputs.release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -146,6 +179,8 @@ jobs:
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Build and push
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag }}
         run: |
           IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
           COMMIT_ID="$(git rev-parse HEAD)"
@@ -156,15 +191,15 @@ jobs:
               --platform linux/amd64,linux/arm64 \
               --build-arg COMMIT_ID="${COMMIT_ID}" \
               --build-arg COMMIT_TIME="${COMMIT_TIME}" \
-              -t "$2:${GITHUB_REF_NAME}" -t "$2:latest" \
+              -t "$2:${RELEASE_TAG}" -t "$2:latest" \
               --push .
           }
-          build minio "${IMAGE}"
-          build mc "${IMAGE}-mc"
+          build minio "${IMAGE}-server"
+          build mc "${IMAGE}-client"
 
   release:
-    if: github.ref_type == 'tag'
-    needs: [verify-tag, binaries, image]
+    needs: [plan, binaries, image]
+    if: needs.plan.outputs.release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -176,17 +211,18 @@ jobs:
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.plan.outputs.tag }}
         run: |
           IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
           cat > notes.md <<NOTES
-          Unofficial MinIO community fork, version \`${GITHUB_REF_NAME}\`.
+          Unofficial MinIO community fork, version \`${RELEASE_TAG}\`.
 
-          Container images (linux/amd64, linux/arm64): \`${IMAGE}:${GITHUB_REF_NAME}\` and the client \`${IMAGE}-mc:${GITHUB_REF_NAME}\`
+          Container images (linux/amd64, linux/arm64): \`${IMAGE}-server:${RELEASE_TAG}\` and the client \`${IMAGE}-client:${RELEASE_TAG}\`
 
           Verify downloads with \`SHA256SUMS\`. Licensed under AGPLv3, source is this repository at the tagged commit.
           NOTES
-          gh release create "${GITHUB_REF_NAME}" dist/* \
+          gh release create "${RELEASE_TAG}" dist/* \
             --repo "${GITHUB_REPOSITORY}" \
-            --title "${GITHUB_REF_NAME}" \
-            --notes-file notes.md \
-            --verify-tag
+            --target "${GITHUB_SHA}" \
+            --title "${RELEASE_TAG}" \
+            --notes-file notes.md

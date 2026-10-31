@@ -16,7 +16,7 @@ clusterDomain: cluster.local
 ## FORK.<time> version in production. A private package needs an
 ## image pull secret, see `imagePullSecrets`.
 image:
-  repository: ghcr.io/phutdzu/minio-fork
+  repository: ghcr.io/phutdzu/minio-lts-server
   tag: latest
   pullPolicy: Always
 
@@ -28,7 +28,7 @@ imagePullSecrets: []
 ##
 ## Built from this repository as the `mc` image target (see the root README).
 mcImage:
-  repository: ghcr.io/phutdzu/minio-fork-mc
+  repository: ghcr.io/phutdzu/minio-lts-client
   tag: latest
   pullPolicy: Always
 

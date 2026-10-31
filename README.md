@@ -65,27 +65,29 @@ make docker             # image for your host platform
 make docker-multiarch   # linux/amd64 + linux/arm64, pushed with docker buildx
 ```
 
-The image is tagged `ghcr.io/phutdzu/minio-fork:FORK.<time>` (override with `REPO=` or `TAG=`). Run it like any MinIO image:
+The image is tagged `ghcr.io/phutdzu/minio-lts-server:FORK.<time>` (override with `REPO=` or `TAG=`). Run it like any MinIO image:
 
 ```sh
 docker run -p 9000:9000 -p 9001:9001 \
   -e MINIO_ROOT_USER=admin -e MINIO_ROOT_PASSWORD=change-me-please \
   -v minio-data:/data \
-  ghcr.io/phutdzu/minio-fork:latest server /data --console-address :9001
+  ghcr.io/phutdzu/minio-lts-server:latest server /data --console-address :9001
 ```
 
 Differences from the upstream image: no `mc` and no `curl` inside, runs as root like upstream (use `--user` or a Kubernetes `securityContext` to drop privileges), the deprecated `MINIO_USERNAME` user switching is not supported.
 
 ### Releases and CI
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the checks (vendoring, lint, unit tests, `govulncheck`, `helm lint`) on every pull request and every push to `main`. Nothing is built or published by those runs. A release is a tag named after the commit time, tag a commit that is already green on `main`:
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the checks (vendoring, lint, unit tests, `govulncheck`, `helm lint`) on every pull request and every push to `main`. Nothing is built or published by those runs. A release is cut from a commit that is already green on `main`, its tag is named after the commit time (`FORK.<UTC commit time>`, e.g. `FORK.2026-10-29T08-55-58Z`).
+
+On GitHub: **Actions > CI > Run workflow**, branch `main`, tick **release**. The workflow computes the tag, builds the binaries and the multi-arch images, pushes the images (`:FORK.<time>` and `:latest`) to GHCR, then creates the tag and a GitHub release with the binaries and `SHA256SUMS`.
+
+From a terminal, pushing the tag does the same:
 
 ```sh
-git tag "$(make -s version)"    # e.g. FORK.2026-10-29T08-55-58Z
+git tag "$(make -s version)"
 git push origin --tags
 ```
-
-The tag workflow then builds the binaries and the multi-arch images, pushes the images (`:FORK.<time>` and `:latest`) to GHCR and creates a GitHub release with the binaries and `SHA256SUMS`.
 
 ## Run
 
@@ -110,7 +112,7 @@ mc ls local/data
 
 ## Kubernetes
 
-A community Helm chart lives in [`helm/minio`](helm/minio). It defaults to the images built by this repository (`ghcr.io/phutdzu/minio-fork` and `ghcr.io/phutdzu/minio-fork-mc`) and is installed from a checkout, see the [chart README](helm/minio/README.md). Pin `image.tag` to a released `FORK.<time>` version in production.
+A community Helm chart lives in [`helm/minio`](helm/minio). It defaults to the images built by this repository (`ghcr.io/phutdzu/minio-lts-server` and `ghcr.io/phutdzu/minio-lts-client`) and is installed from a checkout, see the [chart README](helm/minio/README.md). Pin `image.tag` to a released `FORK.<time>` version in production.
 
 ## Development
 
