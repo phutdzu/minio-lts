@@ -186,7 +186,7 @@ build: checks build-debugging ## builds minio to $(PWD)
 	@echo "Building minio binary to './minio'"
 	@CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -tags kqueue -trimpath --ldflags "$(LDFLAGS)" -o $(PWD)/minio 1>/dev/null
 
-version: ## prints the fork version (LTS.<UTC commit time>), use it as the git tag
+version: ## prints the fork version (LTS.<UTC commit time>)
 	@echo $(VERSION)
 
 docker: ## builds the container image for the host platform
