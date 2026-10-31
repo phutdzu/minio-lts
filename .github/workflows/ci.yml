@@ -6,7 +6,7 @@
 #   SHA256SUMS in a GitHub release. The checks do not run again, release a
 #   commit that is already green on main. Two ways to start one:
 #     * Actions > CI > Run workflow > branch main, tick "release". The tag
-#       FORK.<UTC commit time> is created by the workflow after the build.
+#       LTS.<UTC commit time> is created by the workflow after the build.
 #     * push a tag by hand:  git tag "$(make -s version)" && git push origin --tags
 
 name: CI
@@ -15,13 +15,13 @@ on:
   pull_request:
   push:
     branches: [main]
-    tags: ["FORK.*"]
+    tags: ["LTS.*"]
   schedule:
     - cron: "0 3 * * 1"
   workflow_dispatch:
     inputs:
       release:
-        description: "Publish a release from main (the tag FORK.<commit time> is created automatically)"
+        description: "Publish a release from main (the tag LTS.<commit time> is created automatically)"
         type: boolean
         default: false
 
@@ -65,7 +65,7 @@ jobs:
           fi
 
   # Decides whether this run is a release and which tag it publishes. The tag
-  # is FORK.<UTC commit time> so that the version baked into the binary equals
+  # is LTS.<UTC commit time> so that the version baked into the binary equals
   # the tag.
   plan:
     runs-on: ubuntu-latest
@@ -78,7 +78,7 @@ jobs:
         env:
           INPUT_RELEASE: ${{ inputs.release }}
         run: |
-          tag="FORK.$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%SZ)"
+          tag="LTS.$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%SZ)"
           release=false
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             release=true

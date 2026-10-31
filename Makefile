@@ -5,11 +5,11 @@ LDFLAGS := $(shell go run buildscripts/gen-ldflags.go)
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
-# Fork releases are versioned FORK.<UTC commit time>, same string as the git tag
+# Fork releases are versioned LTS.<UTC commit time>, same string as the git tag
 # and the image tag. Upstream RELEASE.* tags are ignored.
 COMMIT_ID := $(shell git rev-parse HEAD)
 COMMIT_TIME := $(shell git log -1 --format=%cI)
-VERSION ?= FORK.$(shell TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%SZ)
+VERSION ?= LTS.$(shell TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%SZ)
 REPO ?= ghcr.io/phutdzu
 TAG ?= $(REPO)/minio-lts-server:$(VERSION)
 MC_TAG ?= $(REPO)/minio-lts-client:$(VERSION)
@@ -186,7 +186,7 @@ build: checks build-debugging ## builds minio to $(PWD)
 	@echo "Building minio binary to './minio'"
 	@CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -tags kqueue -trimpath --ldflags "$(LDFLAGS)" -o $(PWD)/minio 1>/dev/null
 
-version: ## prints the fork version (FORK.<UTC commit time>), use it as the git tag
+version: ## prints the fork version (LTS.<UTC commit time>), use it as the git tag
 	@echo $(VERSION)
 
 docker: ## builds the container image for the host platform
