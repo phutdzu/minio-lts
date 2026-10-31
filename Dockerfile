@@ -35,7 +35,7 @@ COPY . .
 
 RUN test -n "${COMMIT_ID}" && test -n "${COMMIT_TIME}" \
     || { echo "COMMIT_ID and COMMIT_TIME build args are required" >&2; exit 1; }; \
-    LDFLAGS="$(MINIO_RELEASE=FORK MINIO_COMMIT_ID="${COMMIT_ID}" MINIO_COMMIT_TIME="${COMMIT_TIME}" go run buildscripts/gen-ldflags.go)" && \
+    LDFLAGS="$(MINIO_RELEASE=LTS MINIO_COMMIT_ID="${COMMIT_ID}" MINIO_COMMIT_TIME="${COMMIT_TIME}" go run buildscripts/gen-ldflags.go)" && \
     GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" \
     go build -tags kqueue -trimpath -ldflags "${LDFLAGS}" -o /out/minio .
 
@@ -59,7 +59,7 @@ COPY . .
 # reuse the minio ldflags with the package path swapped.
 RUN test -n "${COMMIT_ID}" && test -n "${COMMIT_TIME}" \
     || { echo "COMMIT_ID and COMMIT_TIME build args are required" >&2; exit 1; }; \
-    LDFLAGS="$(MINIO_RELEASE=FORK MINIO_COMMIT_ID="${COMMIT_ID}" MINIO_COMMIT_TIME="${COMMIT_TIME}" go run buildscripts/gen-ldflags.go | sed 's#github.com/minio/minio/cmd#github.com/minio/mc/cmd#g')" && \
+    LDFLAGS="$(MINIO_RELEASE=LTS MINIO_COMMIT_ID="${COMMIT_ID}" MINIO_COMMIT_TIME="${COMMIT_TIME}" go run buildscripts/gen-ldflags.go | sed 's#github.com/minio/minio/cmd#github.com/minio/mc/cmd#g')" && \
     GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" \
     go build -trimpath -ldflags "${LDFLAGS}" -o /out/mc ./tools/mc
 

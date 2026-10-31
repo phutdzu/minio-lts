@@ -13,7 +13,7 @@ PLATFORMS="${PLATFORMS:-linux/amd64 linux/arm64 linux/ppc64le darwin/amd64 darwi
 DIST="${DIST:-dist}"
 
 export CGO_ENABLED=0
-export MINIO_RELEASE=FORK
+export MINIO_RELEASE=LTS
 
 LDFLAGS="$(go run buildscripts/gen-ldflags.go)"
 # mc has the same version variables, only the package path differs.

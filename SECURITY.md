@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the latest `FORK.<time>` release of this fork receives security fixes. Upstream MinIO no longer publishes fixes, so nothing is inherited from it.
+Only the latest `LTS.<time>` release of this fork receives security fixes. Upstream MinIO no longer publishes fixes, so nothing is inherited from it.
 
 ## Reporting a vulnerability
 
@@ -19,7 +19,7 @@ Use GitHub **private vulnerability reporting** (the "Security" tab, "Report a vu
 1. A maintainer reproduces the report and assesses the impact.
 2. The report is confirmed or rejected with an explanation.
 3. The code is audited for similar problems.
-4. A fix is prepared and released as a new `FORK.<time>` version.
+4. A fix is prepared and released as a new `LTS.<time>` version.
 5. An advisory is added to the release notes. Reporters are credited only if they ask for it.
 
 ## Dependencies

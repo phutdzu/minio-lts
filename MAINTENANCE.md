@@ -53,7 +53,7 @@ git tag "$(make -s version)"
 git push origin --tags
 ```
 
-The workflow publishes the multi-arch images to GHCR and the GitHub release with binaries and `SHA256SUMS`, the tag `FORK.<UTC commit time>` is created by the release step. Bump `version` in `helm/minio/Chart.yaml` when the chart itself changed.
+The workflow publishes the multi-arch images to GHCR and the GitHub release with binaries and `SHA256SUMS`, the tag `LTS.<UTC commit time>` is created by the release step. Bump `version` in `helm/minio/Chart.yaml` when the chart itself changed.
 
 ## If upstream ever resumes
 

@@ -13,7 +13,7 @@ clusterDomain: cluster.local
 ## Set default image, imageTag, and imagePullPolicy. mode is used to indicate the
 ##
 ## Built from this repository, see the root README. Pin `tag` to a released
-## FORK.<time> version in production. A private package needs an
+## LTS.<time> version in production. A private package needs an
 ## image pull secret, see `imagePullSecrets`.
 image:
   repository: ghcr.io/phutdzu/minio-lts-server

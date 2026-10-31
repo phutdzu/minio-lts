@@ -20,7 +20,7 @@ An unofficial, self-maintained fork of the MinIO community edition: a high-perfo
 - All dependencies are vendored in [`vendor/`](vendor), so the build works offline and does not depend on upstream repositories staying online.
 - **In-place update is disabled.** The server never contacts `dl.min.io` and the upstream signing key was removed.
 - **Callhome and SUBNET are disabled.** Nothing is sent to MinIO, Inc. services.
-- Release tags look like `FORK.<UTC commit time>`, e.g. `FORK.2026-10-29T06-55-51Z`.
+- Release tags look like `LTS.<UTC commit time>`, e.g. `LTS.2026-10-29T06-55-51Z`.
 
 Progress and decisions are tracked in [FORK_CHECKLIST.md](FORK_CHECKLIST.md).
 
@@ -32,14 +32,14 @@ Requirements: Go 1.26 or newer (see `go.mod`). No network access is needed, `ven
 # local development build, version shows as DEVELOPMENT.<time>
 make build
 
-# fork release build, version shows as FORK.<time>
-MINIO_RELEASE=FORK make build
+# fork release build, version shows as LTS.<time>
+MINIO_RELEASE=LTS make build
 ```
 
 This produces `./minio`. Cross compile with `GOOS`/`GOARCH`:
 
 ```sh
-GOOS=linux GOARCH=arm64 MINIO_RELEASE=FORK make build
+GOOS=linux GOARCH=arm64 MINIO_RELEASE=LTS make build
 ```
 
 Check what you built:
@@ -54,7 +54,7 @@ Check what you built:
 make release-binaries   # ./dist/minio-<os>-<arch> + SHA256SUMS
 ```
 
-Builds linux (amd64, arm64, ppc64le), darwin (amd64, arm64) and windows (amd64) with `-trimpath`, static, version `FORK.<time>`. Restrict the set with `PLATFORMS="linux/amd64 linux/arm64" bash buildscripts/build-release.sh`.
+Builds linux (amd64, arm64, ppc64le), darwin (amd64, arm64) and windows (amd64) with `-trimpath`, static, version `LTS.<time>`. Restrict the set with `PLATFORMS="linux/amd64 linux/arm64" bash buildscripts/build-release.sh`.
 
 ### Container image
 
@@ -65,7 +65,7 @@ make docker             # image for your host platform
 make docker-multiarch   # linux/amd64 + linux/arm64, pushed with docker buildx
 ```
 
-The image is tagged `ghcr.io/phutdzu/minio-lts-server:FORK.<time>` (override with `REPO=` or `TAG=`). Run it like any MinIO image:
+The image is tagged `ghcr.io/phutdzu/minio-lts-server:LTS.<time>` (override with `REPO=` or `TAG=`). Run it like any MinIO image:
 
 ```sh
 docker run -p 9000:9000 -p 9001:9001 \
@@ -78,9 +78,9 @@ Differences from the upstream image: no `mc` and no `curl` inside, runs as root 
 
 ### Releases and CI
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the checks (vendoring, lint, unit tests, `govulncheck`, `helm lint`) on every pull request and every push to `main`. Nothing is built or published by those runs. A release is cut from a commit that is already green on `main`, its tag is named after the commit time (`FORK.<UTC commit time>`, e.g. `FORK.2026-10-29T08-55-58Z`).
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the checks (vendoring, lint, unit tests, `govulncheck`, `helm lint`) on every pull request and every push to `main`. Nothing is built or published by those runs. A release is cut from a commit that is already green on `main`, its tag is named after the commit time (`LTS.<UTC commit time>`, e.g. `LTS.2026-10-29T08-55-58Z`).
 
-On GitHub: **Actions > CI > Run workflow**, branch `main`, tick **release**. The workflow computes the tag, builds the binaries and the multi-arch images, pushes the images (`:FORK.<time>` and `:latest`) to GHCR, then creates the tag and a GitHub release with the binaries and `SHA256SUMS`.
+On GitHub: **Actions > CI > Run workflow**, branch `main`, tick **release**. The workflow computes the tag, builds the binaries and the multi-arch images, pushes the images (`:LTS.<time>` and `:latest`) to GHCR, then creates the tag and a GitHub release with the binaries and `SHA256SUMS`.
 
 From a terminal, pushing the tag does the same:
 
@@ -112,7 +112,7 @@ mc ls local/data
 
 ## Kubernetes
 
-A community Helm chart lives in [`helm/minio`](helm/minio). It defaults to the images built by this repository (`ghcr.io/phutdzu/minio-lts-server` and `ghcr.io/phutdzu/minio-lts-client`) and is installed from a checkout, see the [chart README](helm/minio/README.md). Pin `image.tag` to a released `FORK.<time>` version in production.
+A community Helm chart lives in [`helm/minio`](helm/minio). It defaults to the images built by this repository (`ghcr.io/phutdzu/minio-lts-server` and `ghcr.io/phutdzu/minio-lts-client`) and is installed from a checkout, see the [chart README](helm/minio/README.md). Pin `image.tag` to a released `LTS.<time>` version in production.
 
 ## Development
 
