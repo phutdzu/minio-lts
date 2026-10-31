@@ -68,8 +68,8 @@ FROM alpine:${ALPINE_VERSION} AS mc
 ARG COMMIT_ID
 ARG COMMIT_TIME
 
-LABEL org.opencontainers.image.source="https://github.com/phutdzu/minio-fork" \
-      org.opencontainers.image.title="minio-fork-mc" \
+LABEL org.opencontainers.image.source="https://github.com/phutdzu/minio-lts" \
+      org.opencontainers.image.title="minio-lts-client" \
       org.opencontainers.image.description="MinIO client (mc) built from the vendored sources of the unofficial MinIO community fork" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.revision="${COMMIT_ID}" \
@@ -88,8 +88,8 @@ FROM alpine:${ALPINE_VERSION} AS minio
 ARG COMMIT_ID
 ARG COMMIT_TIME
 
-LABEL org.opencontainers.image.source="https://github.com/phutdzu/minio-fork" \
-      org.opencontainers.image.title="minio-fork" \
+LABEL org.opencontainers.image.source="https://github.com/phutdzu/minio-lts" \
+      org.opencontainers.image.title="minio-lts-server" \
       org.opencontainers.image.description="Unofficial self-maintained fork of the MinIO community edition, S3 compatible object storage" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.revision="${COMMIT_ID}" \

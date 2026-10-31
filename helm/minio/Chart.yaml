@@ -9,10 +9,10 @@ keywords:
   - object-storage
   - s3
   - cluster
-home: https://github.com/phutdzu/minio-fork
+home: https://github.com/phutdzu/minio-lts
 sources:
-- https://github.com/phutdzu/minio-fork
+- https://github.com/phutdzu/minio-lts
 - https://github.com/minio/minio
 maintainers:
 - name: MinIO community fork maintainers
-  url: https://github.com/phutdzu/minio-fork
+  url: https://github.com/phutdzu/minio-lts
