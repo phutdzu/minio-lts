@@ -76,18 +76,14 @@ docker run -p 9000:9000 -p 9001:9001 \
 
 Differences from the upstream image: no `mc` and no `curl` inside, runs as root like upstream (use `--user` or a Kubernetes `securityContext` to drop privileges), the deprecated `MINIO_USERNAME` user switching is not supported.
 
-### Releases and CI
+### CI and releases
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs the checks (vendoring, lint, unit tests, `govulncheck`, `helm lint`) on every pull request and every push to `main`. Nothing is built or published by those runs. A release is cut from a commit that is already green on `main`, its tag is named after the commit time (`LTS.<UTC commit time>`, e.g. `LTS.2026-10-29T08-55-58Z`).
+Two workflows, kept apart:
 
-On GitHub: **Actions > CI > Run workflow**, branch `main`, tick **release**. The workflow computes the tag, builds the binaries and the multi-arch images, pushes the images (`:LTS.<time>` and `:latest`) to GHCR, then creates the tag and a GitHub release with the binaries and `SHA256SUMS`.
+- [`ci.yml`](.github/workflows/ci.yml) is the **CI**. It runs the checks (vendoring, lint, unit tests, `govulncheck`, `helm lint`) on every pull request, every push to `main` and weekly. It builds and publishes nothing.
+- [`release.yml`](.github/workflows/release.yml) is the **CD**, started by hand: **Actions > Release > Run workflow**, branch `main`. It builds the binaries and the multi-arch images, pushes the images (`:LTS.<time>` and `:latest`) to GHCR, then creates the tag `LTS.<UTC commit time>` (e.g. `LTS.2026-10-29T08-55-58Z`) and a GitHub release with the binaries and `SHA256SUMS`. It refuses to run from another branch, for a commit that is already released, or when a CI check is not green on that commit.
 
-From a terminal, pushing the tag does the same:
-
-```sh
-git tag "$(make -s version)"
-git push origin --tags
-```
+Pushing a tag by hand does nothing, the tag is created by the release workflow. `make version` prints the version the next release of your checkout would get.
 
 ## Run
 

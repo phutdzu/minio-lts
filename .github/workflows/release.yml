@@ -1,0 +1,145 @@
+# Release (CD) for the MinIO LTS repository, started by hand:
+#
+#   Actions > Release > Run workflow > branch main
+#
+# Builds the binaries and the multi-arch images, pushes the images to GHCR and
+# creates the tag LTS.<UTC commit time> together with a GitHub release that
+# carries the binaries and SHA256SUMS. The tag is only created after the build
+# succeeded, so a failed run leaves nothing behind and can simply be re-run.
+#
+# It refuses to release a commit whose CI checks (ci.yml) are not all green.
+
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A release is never cancelled half way.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  GO_VERSION: "1.26"
+  # Everything builds offline from the vendored sources.
+  GOFLAGS: -mod=vendor
+  GOPROXY: "off"
+  GOTOOLCHAIN: local
+
+jobs:
+  # Computes the tag and decides whether this commit may be released. The tag
+  # is LTS.<UTC commit time> so that the version baked into the binary equals
+  # the tag.
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      tag: ${{ steps.plan.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "${GITHUB_REF}" = "refs/heads/main" || { echo "releases are cut from main only"; exit 1; }
+
+          tag="LTS.$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H-%M-%SZ)"
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            echo "release ${tag} already exists, there is no new commit to release"
+            exit 1
+          fi
+
+          # Every CI check must be green on this exact commit (latest run of each).
+          results="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?per_page=100" \
+            --jq '.check_runs | group_by(.name) | map({name: .[0].name, conclusion: (sort_by(.started_at) | last | .conclusion)}) | .[] | "\(.name)=\(.conclusion)"')"
+          echo "${results}"
+          for check in vendor-check lint unit-test govulncheck helm-lint; do
+            echo "${results}" | grep -qx "${check}=success" || { echo "CI check '${check}' is not green on ${GITHUB_SHA}, wait for CI or fix it first"; exit 1; }
+          done
+
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+
+  # Cross compiles every supported platform, the release job publishes them.
+  binaries:
+    needs: plan
+    runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: bash buildscripts/build-release.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  # Builds and pushes the server image (ghcr.io/<owner>/<repo>-server) and the
+  # mc client image (ghcr.io/<owner>/<repo>-client), tagged with the release
+  # tag and `latest`.
+  image:
+    needs: plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Build and push
+        env:
+          RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          COMMIT_ID="$(git rev-parse HEAD)"
+          COMMIT_TIME="$(git log -1 --format=%cI)"
+          build() { # build <target> <image>
+            docker buildx build \
+              --target "$1" \
+              --platform linux/amd64,linux/arm64 \
+              --build-arg COMMIT_ID="${COMMIT_ID}" \
+              --build-arg COMMIT_TIME="${COMMIT_TIME}" \
+              -t "$2:${RELEASE_TAG}" -t "$2:latest" \
+              --push .
+          }
+          build minio "${IMAGE}-server"
+          build mc "${IMAGE}-client"
+
+  release:
+    needs: [plan, binaries, image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Create tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          cat > notes.md <<NOTES
+          Unofficial MinIO community continuation, version \`${RELEASE_TAG}\`.
+
+          Container images (linux/amd64, linux/arm64): \`${IMAGE}-server:${RELEASE_TAG}\` and the client \`${IMAGE}-client:${RELEASE_TAG}\`
+
+          Verify downloads with \`SHA256SUMS\`. Licensed under AGPLv3, source is this repository at the tagged commit.
+          NOTES
+          gh release create "${RELEASE_TAG}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --title "${RELEASE_TAG}" \
+            --notes-file notes.md
