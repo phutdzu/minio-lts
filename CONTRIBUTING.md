@@ -19,6 +19,44 @@ make build
 
 Go 1.26 or newer is required. Dependencies are vendored, no network is needed to build.
 
+## Build
+
+```sh
+# local development build, version shows as DEVELOPMENT.<time>
+make build
+
+# release-style build, version shows as LTS.<time>
+MINIO_RELEASE=LTS make build
+
+# cross compile
+GOOS=linux GOARCH=arm64 MINIO_RELEASE=LTS make build
+
+./minio --version
+```
+
+No network access is needed, `vendor/` is used automatically.
+
+Release binaries (`./dist/minio-<os>-<arch>`, `mc-<os>-<arch>` and `SHA256SUMS`, static, `-trimpath`):
+
+```sh
+make release-binaries
+PLATFORMS="linux/amd64 linux/arm64" bash buildscripts/build-release.sh   # a subset
+```
+
+Container image, compiled from the vendored source (nothing is downloaded from upstream):
+
+```sh
+make docker             # server image for your host platform
+make docker-mc          # client image
+make docker-multiarch   # linux/amd64 + linux/arm64, pushed with docker buildx
+```
+
+Images are tagged `ghcr.io/phutdzu/minio-lts-server:LTS.<time>` (override with `REPO=` or `TAG=`). `make version` prints the version your checkout would get.
+
+## CI
+
+[`ci.yml`](.github/workflows/ci.yml) runs on every pull request, every push to `main` and weekly: vendoring, lint, unit tests, `govulncheck` and `helm lint`. It builds and publishes nothing. All five checks must be green to merge. Releases are a separate, manual workflow, see [MAINTENANCE.md](MAINTENANCE.md#release).
+
 ## Checks before a pull request
 
 ```sh
