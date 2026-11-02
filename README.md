@@ -1,11 +1,69 @@
-# MinIO community fork
+# MinIO LTS
 
-An unofficial, self-maintained fork of the MinIO community edition: a high-performance, S3-compatible object storage server written in Go.
+An unofficial, self-maintained continuation of the MinIO community edition: a high-performance, S3-compatible object storage server written in Go. Prebuilt binaries and container images are published from this repository.
 
 > [!IMPORTANT]
 > This project is **not affiliated with or endorsed by MinIO, Inc.**
 > Upstream [`minio/minio`](https://github.com/minio/minio) is no longer maintained and no longer ships binaries or container images.
-> This fork keeps the source buildable, fixes security issues and may add features. Use it at your own risk (see [License](#license)).
+> This project keeps the source buildable, fixes security issues and may add features. "LTS" is only a name, there is no support promise. Use it at your own risk (see [License](#license)).
+
+## Quick start
+
+Pick one, the full guide is in **[INSTALL.md](INSTALL.md)**.
+
+**Docker**
+
+```sh
+docker run -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=admin -e MINIO_ROOT_PASSWORD=change-me-please \
+  -v minio-data:/data \
+  ghcr.io/phutdzu/minio-lts-server:latest server /data --console-address :9001
+```
+
+**Linux binary**
+
+```sh
+curl -fsSLO https://github.com/phutdzu/minio-lts/releases/latest/download/minio-linux-amd64
+curl -fsSLO https://github.com/phutdzu/minio-lts/releases/latest/download/SHA256SUMS
+grep ' minio-linux-amd64$' SHA256SUMS | sha256sum -c -
+chmod +x minio-linux-amd64
+MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=change-me-please \
+  ./minio-linux-amd64 server ./data --console-address :9001
+```
+
+**Kubernetes**: Helm chart in [`helm/minio`](helm/minio), see [INSTALL.md](INSTALL.md#kubernetes-helm).
+
+Then open the console at <http://localhost:9001> or use any S3 client, for example [`mc`](INSTALL.md#first-steps-with-mc). Without `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` the server falls back to the well-known `minioadmin:minioadmin`, never use that outside of local testing.
+
+## What you get
+
+| | Where |
+|---|---|
+| Server image | `ghcr.io/phutdzu/minio-lts-server` (linux/amd64, linux/arm64) |
+| Client (`mc`) image | `ghcr.io/phutdzu/minio-lts-client` (linux/amd64, linux/arm64) |
+| Binaries | [GitHub Releases](https://github.com/phutdzu/minio-lts/releases): `minio` and `mc` for linux (amd64, arm64, ppc64le), macOS (amd64, arm64), windows (amd64), with `SHA256SUMS` |
+| Kubernetes | [Helm chart](helm/minio) |
+
+Versions look like `LTS.<UTC commit time>`, e.g. `LTS.2026-11-01T04-07-36Z`. It is the git tag, the image tag and what `minio --version` prints. Pin a full version for anything you keep running, `latest` is the newest release.
+
+## What differs from upstream
+
+- All dependencies are vendored in [`vendor/`](vendor), so the build works offline and does not depend on upstream repositories staying online.
+- **In-place update is disabled.** The server never contacts `dl.min.io` and the upstream signing key was removed.
+- **Callhome and SUBNET are disabled.** Nothing is sent to MinIO, Inc. services.
+- Dependencies and Go are kept current, `govulncheck` runs on every change and weekly.
+- Release binaries are not signed (checksums only) and there are no `.deb`/`.rpm` packages yet.
+
+## Documentation
+
+| | |
+|---|---|
+| [INSTALL.md](INSTALL.md) | install (Docker, Linux/systemd, macOS, Windows, Helm), first steps, production checklist, upgrade |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | build from source, run the tests, send a pull request |
+| [SECURITY.md](SECURITY.md) | report a vulnerability, which versions get fixes |
+| [MAINTENANCE.md](MAINTENANCE.md) | maintainer routine: CVE fixes, Go upgrades, cutting a release |
+| [FORK_CHECKLIST.md](FORK_CHECKLIST.md) | project history and decisions |
+| [`docs/`](docs) | carried over from upstream, still describes upstream behaviour: features removed here (in-place update, callhome, SUBNET licensing) are described there as if available |
 
 ## Origin
 
@@ -15,119 +73,9 @@ An unofficial, self-maintained fork of the MinIO community edition: a high-perfo
 | Forked from | `7aac2a2c5` (upstream `master`, 2026-02-12) |
 | Last upstream release tag | `RELEASE.2025-10-15T17-29-55Z` |
 
-## What differs from upstream
-
-- All dependencies are vendored in [`vendor/`](vendor), so the build works offline and does not depend on upstream repositories staying online.
-- **In-place update is disabled.** The server never contacts `dl.min.io` and the upstream signing key was removed.
-- **Callhome and SUBNET are disabled.** Nothing is sent to MinIO, Inc. services.
-- Release tags look like `LTS.<UTC commit time>`, e.g. `LTS.2026-10-29T06-55-51Z`.
-
-Progress and decisions are tracked in [FORK_CHECKLIST.md](FORK_CHECKLIST.md).
-
-## Build
-
-Requirements: Go 1.26 or newer (see `go.mod`). No network access is needed, `vendor/` is used automatically.
-
-```sh
-# local development build, version shows as DEVELOPMENT.<time>
-make build
-
-# fork release build, version shows as LTS.<time>
-MINIO_RELEASE=LTS make build
-```
-
-This produces `./minio`. Cross compile with `GOOS`/`GOARCH`:
-
-```sh
-GOOS=linux GOARCH=arm64 MINIO_RELEASE=LTS make build
-```
-
-Check what you built:
-
-```sh
-./minio --version
-```
-
-### Release binaries
-
-```sh
-make release-binaries   # ./dist/minio-<os>-<arch> + SHA256SUMS
-```
-
-Builds linux (amd64, arm64, ppc64le), darwin (amd64, arm64) and windows (amd64) with `-trimpath`, static, version `LTS.<time>`. Restrict the set with `PLATFORMS="linux/amd64 linux/arm64" bash buildscripts/build-release.sh`.
-
-### Container image
-
-The [`Dockerfile`](Dockerfile) compiles MinIO from the vendored source (nothing is downloaded from upstream) on `alpine`.
-
-```sh
-make docker             # image for your host platform
-make docker-multiarch   # linux/amd64 + linux/arm64, pushed with docker buildx
-```
-
-The image is tagged `ghcr.io/phutdzu/minio-lts-server:LTS.<time>` (override with `REPO=` or `TAG=`). Run it like any MinIO image:
-
-```sh
-docker run -p 9000:9000 -p 9001:9001 \
-  -e MINIO_ROOT_USER=admin -e MINIO_ROOT_PASSWORD=change-me-please \
-  -v minio-data:/data \
-  ghcr.io/phutdzu/minio-lts-server:latest server /data --console-address :9001
-```
-
-Differences from the upstream image: no `mc` and no `curl` inside, runs as root like upstream (use `--user` or a Kubernetes `securityContext` to drop privileges), the deprecated `MINIO_USERNAME` user switching is not supported.
-
-### CI and releases
-
-Two workflows, kept apart:
-
-- [`ci.yml`](.github/workflows/ci.yml) is the **CI**. It runs the checks (vendoring, lint, unit tests, `govulncheck`, `helm lint`) on every pull request, every push to `main` and weekly. It builds and publishes nothing.
-- [`release.yml`](.github/workflows/release.yml) is the **CD**, started by hand: **Actions > Release > Run workflow**, branch `main`. It builds the binaries and the multi-arch images, pushes the images (`:LTS.<time>` and `:latest`) to GHCR, then creates the tag `LTS.<UTC commit time>` (e.g. `LTS.2026-10-29T08-55-58Z`) and a GitHub release with the binaries and `SHA256SUMS`. It refuses to run from another branch, for a commit that is already released, or when a CI check is not green on that commit.
-
-Pushing a tag by hand does nothing, the tag is created by the release workflow. `make version` prints the version the next release of your checkout would get.
-
-## Run
-
-```sh
-MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=change-me-please \
-  ./minio server /path/to/data --console-address :9001
-```
-
-- S3 API: <http://127.0.0.1:9000>
-- Web console: <http://127.0.0.1:9001>
-
-Without `MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD` the server falls back to the well-known default `minioadmin:minioadmin`, never use that outside of local testing.
-
-Any S3 client works, for example the MinIO Client [`mc`](https://github.com/minio/mc):
-
-```sh
-mc alias set local http://localhost:9000 admin change-me-please
-mc mb local/data
-mc cp ./file local/data/
-mc ls local/data
-```
-
-## Kubernetes
-
-A community Helm chart lives in [`helm/minio`](helm/minio). It defaults to the images built by this repository (`ghcr.io/phutdzu/minio-lts-server` and `ghcr.io/phutdzu/minio-lts-client`) and is installed from a checkout, see the [chart README](helm/minio/README.md). Pin `image.tag` to a released `LTS.<time>` version in production.
-
-## Development
-
-```sh
-make verifiers   # lint + generated-file check
-make test        # build, lint and unit tests
-```
-
-After changing dependencies always run `go mod tidy -e && go mod vendor` and commit `go.mod`, `go.sum` and `vendor/` together.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and [MAINTENANCE.md](MAINTENANCE.md) (recurring security and upgrade routine).
-
-## Documentation
-
-The `docs/` folder is carried over from upstream and still describes upstream behaviour. Features removed in this fork (in-place update, callhome, SUBNET licensing) are described there as if available.
-
 ## License
 
 - Source code: [GNU AGPLv3](LICENSE), copyright MinIO, Inc. and contributors, see [NOTICE](NOTICE) and [CREDITS](CREDITS).
 - Documentation in `docs/`: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-The AGPLv3 applies to this fork. If you run a modified version as a network service you must offer its corresponding source to the users of that service, and redistributed binaries or images must be accompanied by the license and source. The license gives no warranty and no support obligation. Check with your own legal counsel whether your use complies.
+The AGPLv3 applies to this project. If you run a modified version as a network service you must offer its corresponding source to the users of that service, and redistributed binaries or images must be accompanied by the license and source. The license gives no warranty and no support obligation. Check with your own legal counsel whether your use complies.
