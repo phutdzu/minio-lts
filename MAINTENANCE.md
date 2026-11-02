@@ -9,11 +9,20 @@ The weekly `schedule` trigger in `.github/workflows/ci.yml` (Mondays 03:00 UTC, 
 | When | What |
 |---|---|
 | Weekly (scheduled workflow) | `govulncheck` job, read the result, fix anything reachable |
+| Weekly (Security workflow) | Read the Security tab (Code scanning) and the Dependabot pull requests, upgrade modules with a HIGH or CRITICAL finding, cut a release when something changed |
 | Monthly | Bump the Go patch version, rebuild, cut a release if anything changed |
 | On a published CVE for a dependency | Upgrade that module, see below |
 | Before every release tag | CI green on `main`, `make version` matches the tag |
 
 The `lint` and `govulncheck` jobs gate merges. A new CVE can turn `govulncheck` red without any code change: fix it by upgrading the module or the Go version, see below.
+
+## Vulnerability scanning
+
+- [`security.yml`](.github/workflows/security.yml) scans `ghcr.io/phutdzu/minio-lts-server:latest` and `-client:latest` with Trivy every Monday 04:00 UTC, after every Release run and on demand (Actions > Security > Run workflow). Findings go to Security > Code scanning, the run summary shows the counts per severity. The run is red only for a CRITICAL with a fixed version.
+- The Release workflow runs the same kind of scan on the linux binaries (`vuln-gate`) before it builds the images, stops on the same condition and writes the counts into the release notes. If a CRITICAL has a fix, upgrade the module first, there is no override. A CRITICAL with no fix does not block, it is listed in the notes.
+- Trivy is pinned by version and digest in `security.yml` and `release.yml` (`TRIVY_IMAGE`), update both together and check the new version's age before moving.
+- Trivy matches versions against advisories, it does not know whether the code calls the vulnerable function. Compare with `govulncheck` before treating a finding as urgent.
+- `.github/dependabot.yml` opens weekly pull requests (Go modules grouped into one, GitHub Actions, Docker base image). Turn on **Dependabot alerts** and **Dependabot security updates** in the repository settings (Settings > Advanced Security) so advisories also open pull requests outside the schedule.
 
 ## Fix a vulnerable dependency
 
