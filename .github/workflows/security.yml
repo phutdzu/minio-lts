@@ -1,0 +1,75 @@
+# Vulnerability scan of the published images.
+#
+# CI (ci.yml) runs govulncheck, which only reports vulnerabilities the code can
+# actually reach. This workflow answers the other question, the one container
+# registries show as a severity bar: which known CVEs are in the packages and
+# Go modules that ship inside the images.
+#
+# Runs weekly, after every release and on demand. Every finding is uploaded to
+# the repository's Security tab (Code scanning), so anyone can see what is open
+# and which version fixes it. The run goes red only for a CRITICAL
+# vulnerability that already has a fixed version.
+
+name: Security
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.event_name }}
+  cancel-in-progress: true
+
+env:
+  # Trivy 0.76.0, pinned by digest.
+  TRIVY_IMAGE: aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222
+
+jobs:
+  image-scan:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [server, client]
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: scan
+        name: Scan the image
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}-${{ matrix.image }}:latest"
+          OUT="${RUNNER_TEMP}/trivy"
+          mkdir -p "${OUT}"
+          trivy() { docker run --rm -v "${OUT}:/out" "${TRIVY_IMAGE}" "$@"; }
+
+          trivy image --quiet --scanners vuln --format json --output /out/report.json "${IMAGE}"
+          trivy convert --format sarif --output /out/report.sarif /out/report.json
+
+          status=0
+          bash buildscripts/vuln-summary.sh "${OUT}/report.json" "${IMAGE}" | tee -a "${GITHUB_STEP_SUMMARY}" || status=$?
+          echo "status=${status}" >> "${GITHUB_OUTPUT}"
+          echo "sarif=${OUT}/report.sarif" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload to the Security tab
+        if: always() && steps.scan.outputs.sarif != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
+          category: trivy-${{ matrix.image }}
+
+      - name: Fail on a fixable CRITICAL vulnerability
+        if: steps.scan.outputs.status != '0'
+        run: |
+          echo "A CRITICAL vulnerability with a fixed version is in the image, see the summary of this run."
+          exit 1

@@ -1,0 +1,34 @@
+# Dependabot opens pull requests for outdated dependencies. Security updates
+# (a dependency with a published advisory) are switched on in the repository
+# settings and are not limited by the schedule or the groups below.
+#
+# Go modules are vendored, Dependabot updates go.mod, go.sum and vendor/
+# together. The CI checks run on every one of these pull requests.
+
+version: 2
+
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: tuesday
+    open-pull-requests-limit: 5
+    groups:
+      go-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: tuesday
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: tuesday

@@ -22,6 +22,12 @@ Use GitHub **private vulnerability reporting** (the "Security" tab, "Report a vu
 4. A fix is prepared and released as a new `LTS.<time>` version.
 5. An advisory is added to the release notes. Reporters are credited only if they ask for it.
 
-## Dependencies
+## Dependencies and scanning
 
-The dependency tree is vendored. Known vulnerabilities in dependencies are tracked with `govulncheck ./...` and fixed by upgrading the module and re-running `go mod tidy && go mod vendor`.
+The dependency tree is vendored. Three things watch it:
+
+- `govulncheck` (CI, every change and weekly) reports vulnerabilities the code can actually reach.
+- Trivy (`security.yml`, weekly and after every release) scans the published images and lists every known CVE in the Alpine packages and in the Go modules inside the binaries, in the repository's Security tab. It fails only for a CRITICAL vulnerability that has a fixed version.
+- The release workflow scans the binaries before anything is published and stops on the same condition. The counts are written into the release notes.
+
+Findings are fixed by upgrading the module and re-running `go mod tidy -e && go mod vendor`. A finding in a dependency that the code never calls is still fixed, but it is not an emergency. Dependabot opens pull requests for outdated modules.

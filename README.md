@@ -1,5 +1,9 @@
 # MinIO LTS
 
+[![CI](https://github.com/phutdzu/minio-lts/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/phutdzu/minio-lts/actions/workflows/ci.yml)
+[![Security scan](https://github.com/phutdzu/minio-lts/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/phutdzu/minio-lts/actions/workflows/security.yml)
+[![Release](https://img.shields.io/github/v/release/phutdzu/minio-lts?label=release)](https://github.com/phutdzu/minio-lts/releases/latest)
+
 An unofficial, self-maintained continuation of the MinIO community edition: a high-performance, S3-compatible object storage server written in Go. Prebuilt binaries and container images are published from this repository.
 
 > [!IMPORTANT]
@@ -53,6 +57,17 @@ Versions look like `LTS.<UTC commit time>`, e.g. `LTS.2026-11-01T04-07-36Z`. It 
 - **Callhome and SUBNET are disabled.** Nothing is sent to MinIO, Inc. services.
 - Dependencies and Go are kept current, `govulncheck` runs on every change and weekly.
 - Release binaries are not signed (checksums only) and there are no `.deb`/`.rpm` packages yet.
+
+## Security status
+
+The images are scanned for known vulnerabilities (Trivy) every week and after every release, the way a registry shows a severity bar:
+
+- **Current findings:** the repository's [Security tab > Code scanning](https://github.com/phutdzu/minio-lts/security/code-scanning), one entry per CVE with the affected package, the installed version and the version that fixes it.
+- **Per release:** the release notes list the vulnerability counts found in the binaries when it was built.
+- **The "Security scan" badge** turns red only for a CRITICAL vulnerability that already has a fixed version. HIGH, MEDIUM and LOW findings do not turn it red, read the Security tab, it is the full picture.
+- Dependency updates arrive as Dependabot pull requests.
+
+Fixes are welcome: upgrade the vulnerable module (see [CONTRIBUTING.md](CONTRIBUTING.md#dependencies)) and open a pull request, or open an issue for a finding you want to discuss. Report new vulnerabilities in this project's own code privately, see [SECURITY.md](SECURITY.md).
 
 ## Documentation
 

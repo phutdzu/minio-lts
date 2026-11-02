@@ -7,7 +7,9 @@
 # carries the binaries and SHA256SUMS. The tag is only created after the build
 # succeeded, so a failed run leaves nothing behind and can simply be re-run.
 #
-# It refuses to release a commit whose CI checks (ci.yml) are not all green.
+# It refuses to release a commit whose CI checks (ci.yml) are not all green, or
+# whose binaries contain a CRITICAL vulnerability that already has a fix. The
+# vulnerability counts of the release are written into its notes.
 
 name: Release
 
@@ -28,6 +30,8 @@ env:
   GOFLAGS: -mod=vendor
   GOPROXY: "off"
   GOTOOLCHAIN: local
+  # Trivy 0.76.0, pinned by digest.
+  TRIVY_IMAGE: aquasec/trivy:0.76.0@sha256:2416d1f74045b57274df1a340eee6b510cacd73c66a6ccb8da092b117eb7d222
 
 jobs:
   # Computes the tag and decides whether this commit may be released. The tag
@@ -82,11 +86,42 @@ jobs:
           path: dist/
           retention-days: 7
 
+  # Scans the freshly built linux binaries for known vulnerabilities. A CRITICAL
+  # one that has a fixed version stops the release before anything is pushed,
+  # everything else is reported in the release notes. The weekly scan of the
+  # images (security.yml) also covers the Alpine packages.
+  vuln-gate:
+    needs: [plan, binaries]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Scan the binaries
+        run: |
+          mkdir -p scan out
+          cp dist/minio-linux-amd64 dist/mc-linux-amd64 scan/
+          chmod +x scan/*        # Trivy only looks at executable files
+          docker run --rm -v "${PWD}/scan:/scan:ro" -v "${PWD}/out:/out" "${TRIVY_IMAGE}" \
+            rootfs --quiet --scanners vuln --format json --output /out/report.json /scan
+          status=0
+          bash buildscripts/vuln-summary.sh out/report.json "Known vulnerabilities in the binaries" > out/summary.md || status=$?
+          cat out/summary.md >> "${GITHUB_STEP_SUMMARY}"
+          exit "${status}"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vuln-summary
+          path: out/summary.md
+          retention-days: 7
+
   # Builds and pushes the server image (ghcr.io/<owner>/<repo>-server) and the
   # mc client image (ghcr.io/<owner>/<repo>-client), tagged with the release
   # tag and `latest`.
   image:
-    needs: plan
+    needs: [plan, vuln-gate]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -116,7 +151,7 @@ jobs:
           build mc "${IMAGE}-client"
 
   release:
-    needs: [plan, binaries, image]
+    needs: [plan, binaries, vuln-gate, image]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -125,6 +160,10 @@ jobs:
         with:
           name: dist
           path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: vuln-summary
+          path: vuln
       - name: Create tag and release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -137,7 +176,10 @@ jobs:
           Container images (linux/amd64, linux/arm64): \`${IMAGE}-server:${RELEASE_TAG}\` and the client \`${IMAGE}-client:${RELEASE_TAG}\`
 
           Verify downloads with \`SHA256SUMS\`. Licensed under AGPLv3, source is this repository at the tagged commit.
+
           NOTES
+          cat vuln/summary.md >> notes.md
+          echo "Scanned at release time with Trivy, the images are rescanned weekly, see the Security tab of this repository." >> notes.md
           gh release create "${RELEASE_TAG}" dist/* \
             --repo "${GITHUB_REPOSITORY}" \
             --target "${GITHUB_SHA}" \
