@@ -110,6 +110,8 @@ MINIO_ROOT_USER=admin MINIO_ROOT_PASSWORD=change-me-please \
 
 ### Run as a service
 
+> The unit file below follows the usual MinIO layout but has **not been run** by the maintainer. Check it on a test machine first.
+
 Create a user and a data directory:
 
 ```sh
@@ -161,6 +163,8 @@ journalctl -u minio -f
 
 ## macOS and Windows
 
+> macOS (arm64) binaries were run and checked against `SHA256SUMS`. The Windows and ppc64le binaries and the Intel Mac build were **not run**.
+
 Same files, pick `minio-darwin-arm64` (Apple silicon), `minio-darwin-amd64` (Intel Mac) or `minio-windows-amd64.exe`.
 
 ```sh
@@ -181,6 +185,8 @@ $env:MINIO_ROOT_USER = "admin"; $env:MINIO_ROOT_PASSWORD = "change-me-please"
 The binaries are not code signed or notarized. If macOS blocks a file you downloaded with a browser, clear the quarantine flag after checking the checksum: `xattr -d com.apple.quarantine minio-darwin-arm64`. Windows SmartScreen may warn too. Windows and the extra platforms are mainly for trying things out, production use is on Linux (binary or container).
 
 ## Kubernetes (Helm)
+
+> The chart renders and passes `helm lint` in CI, but it has **not been installed on a real cluster** yet. Try it in a test namespace first.
 
 The chart is not published to a Helm repository, install it from a checkout:
 
@@ -250,10 +256,23 @@ There is no in-place updater, you replace the binary or the image yourself. Back
 | Binary | stop the service, replace `/usr/local/bin/minio`, start | `systemctl disable --now minio`, remove the unit, binary, `/etc/default/minio`, and (**deletes the data**) `/var/lib/minio` |
 | Helm | `helm upgrade minio ./helm/minio --reuse-values --set image.tag=<new>` | `helm uninstall minio` (volumes stay until you delete the PVCs) |
 
+## Moving from an upstream MinIO
+
+Tested once, on a copy of a real volume written by `RELEASE.2025-04-08T15-41-24Z` (single drive, about 85 GB): the new image opened it and listed the same objects, versions and size. See [Tested](README.md#tested) for what that does and does not cover. Do it like this:
+
+1. Stop the old container and **copy the data volume** (or take a snapshot). Keep the copy until you are sure.
+2. Change only `image:` to `ghcr.io/phutdzu/minio-lts-server:<pinned version>`. Keep the volume, `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD` as they were: the stored users and policies are encrypted with the root credentials.
+3. Replace a `curl` health check with `wget -q --spider http://localhost:9000/minio/health/live`, there is no `curl` in the image.
+4. Start it, run `mc ls` and `mc admin user list`, open a few files, then test your application.
+5. Do not expect to go back: once the new server has written to the volume, the old release may not read it. Roll back from your copy.
+
+If you manage users, policies or access keys in the old web console, note that the web console here is an object browser only, use `mc admin` instead.
+
 ## Differences from upstream
 
-- `mc admin update` and the in-place updater are disabled, the server never contacts `dl.min.io`.
-- Callhome and SUBNET are disabled, nothing is sent to MinIO, Inc.
+- The in-place updater is removed from the server code, there is no `dl.min.io` reference left in it (`mc update` still points there).
+- Callhome and SUBNET are switched off in the server code. The vendored console, `mc` and `madmin-go` were not audited and release traffic was not captured.
+- The web console has no pages for users, policies, access keys or settings, use `mc admin`. It keeps the upstream branding and links.
 - Images are built from this repository on Alpine, with no `mc` or `curl` in the server image.
 - Release binaries are unsigned (SHA256SUMS only), and there are no `.deb`/`.rpm` packages yet.
 
