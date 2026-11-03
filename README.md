@@ -56,7 +56,7 @@ Versions look like `LTS.<UTC commit time>`, e.g. `LTS.2026-11-01T04-07-36Z`. It 
 - **In-place update is removed from the server code.** There is no reference to `dl.min.io` left in this repository's Go code and the upstream signing key was removed.
 - **Callhome and SUBNET are switched off in the server code** (callhome is hard-coded off). The libraries vendored from MinIO (the web console, the `mc` client, `madmin-go`) were not audited, and `mc update` still points at `dl.min.io`. Network traffic of a release has not been captured and checked, if that matters to you, block outbound access and test.
 - Dependencies and Go are kept current, `govulncheck` runs on every change and weekly.
-- **The web console is an object browser only.** The console bundled with the 2025-09 community code has no pages for users, policies, access keys or settings. Manage them with `mc admin`, see [INSTALL.md](INSTALL.md#first-steps-with-mc). It still shows the upstream MinIO logo, "Community Edition" and links to MinIO's commercial license page, and nobody has checked yet whether it contacts `min.io`.
+- **The web console is the old `minio/console` v1.7.6** (February 2025, the one `RELEASE.2025-04-08` shipped), with the administrator pages (users, groups, policies, access keys, configuration, monitoring). The newer console of the 2025-09 community code only has an object browser. The console repository is gone from GitHub, this copy is vendored and has no upstream maintainer. It keeps MinIO's logo and links, its pages can load images from `min.io`/`blog.min.io`, and it can call MinIO's release service (`enterprise-updates.ic.min.dev`, override with `RELEASE_SERVICE_HOST`). Only part of it was clicked through by hand, see [Tested](#tested).
 - Release binaries are not signed (checksums only) and there are no `.deb`/`.rpm` packages yet.
 
 ## Tested
@@ -65,6 +65,8 @@ Checked on the release `LTS.2026-11-03T07-00-07Z` and the one before it, by hand
 
 - **Binaries and images** (anonymous pull): linux/arm64 on macOS and linux/amd64 on Ubuntu. Version string, health check, S3 round trip with `mc`, data kept after restart, container removal and `SIGKILL`.
 - **Upgrade from `RELEASE.2025-04-08T15-41-24Z`** on a copy of a real volume: about 85 GB, about 44,000 objects with versions, 8 buckets, one drive. The new image started on the old volume, listed the same objects, versions and total size as the old server, showed no errors in its log, and served files (an image preview in the console). On a small test volume, users, a read-only policy and bucket versioning also survived.
+
+The console with the administrator pages (v1.7.6) was started on a Mac with a throwaway data directory: login, the user/policy/group/service-account/config API endpoints and the policy page worked, the other pages and a run against a copy of real data were not tried.
 
 Not tested, so do not assume it works: an application running against it, multi-node or multi-drive (erasure coded) setups, replication, lifecycle rules, KMS/encryption, downgrading back to the old release after the new one wrote to the volume, ppc64le and Windows binaries, the Helm chart on a real cluster, the systemd unit in [INSTALL.md](INSTALL.md). Copy the volume first and try it on the copy.
 

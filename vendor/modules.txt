@@ -748,21 +748,33 @@ github.com/minio/cli
 # github.com/minio/colorjson v1.0.8
 ## explicit; go 1.21
 github.com/minio/colorjson
-# github.com/minio/console v1.7.7-0.20250905210349-2017f33b26e1
-## explicit; go 1.24.0
+# github.com/minio/console v1.7.6
+## explicit; go 1.23
 github.com/minio/console/api
 github.com/minio/console/api/operations
+github.com/minio/console/api/operations/account
 github.com/minio/console/api/operations/auth
 github.com/minio/console/api/operations/bucket
-github.com/minio/console/api/operations/license
+github.com/minio/console/api/operations/configuration
+github.com/minio/console/api/operations/group
+github.com/minio/console/api/operations/idp
+github.com/minio/console/api/operations/inspect
+github.com/minio/console/api/operations/k_m_s
+github.com/minio/console/api/operations/logging
 github.com/minio/console/api/operations/object
+github.com/minio/console/api/operations/policy
 github.com/minio/console/api/operations/public
+github.com/minio/console/api/operations/release
+github.com/minio/console/api/operations/service
+github.com/minio/console/api/operations/service_account
 github.com/minio/console/api/operations/system
+github.com/minio/console/api/operations/user
 github.com/minio/console/api/policy
 github.com/minio/console/models
 github.com/minio/console/pkg
 github.com/minio/console/pkg/auth
 github.com/minio/console/pkg/auth/idp/oauth2
+github.com/minio/console/pkg/auth/ldap
 github.com/minio/console/pkg/auth/token
 github.com/minio/console/pkg/auth/utils
 github.com/minio/console/pkg/certs
