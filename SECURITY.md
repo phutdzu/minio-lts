@@ -30,4 +30,4 @@ The dependency tree is vendored. Three things watch it:
 - Trivy (`security.yml`, weekly and after every release) scans the published images and lists every known CVE in the Alpine packages and in the Go modules inside the binaries, in the repository's Security tab. It fails only for a CRITICAL vulnerability that has a fixed version.
 - The release workflow scans the binaries before anything is published and stops on the same condition. The counts are written into the release notes.
 
-Findings are fixed by upgrading the module and re-running `go mod tidy -e && go mod vendor`. A finding in a dependency that the code never calls is still fixed, but it is not an emergency. Dependabot opens pull requests for outdated modules.
+Findings are fixed by upgrading the module and re-running `go mod tidy && go mod vendor`. A finding in a dependency that the code never calls is still fixed, but it is not an emergency. Dependabot opens pull requests for outdated modules.

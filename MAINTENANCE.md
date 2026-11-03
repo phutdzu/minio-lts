@@ -28,7 +28,7 @@ The `lint` and `govulncheck` jobs gate merges. A new CVE can turn `govulncheck` 
 
 ```sh
 go get example.com/module@v1.2.3     # the fixed version
-go mod tidy -e   # -e: a test-only import of github.com/go-openapi/swag is unresolvable upstream
+go mod tidy
 go mod vendor
 git ls-files --others --ignored --exclude-standard vendor   # must print nothing
 go build ./... && go test ./internal/... 
@@ -42,7 +42,7 @@ Modules under `github.com/minio/*` (`madmin-go`, `minio-go`, `pkg`, `console`, `
 
 1. Change `GO_VERSION` in the `Dockerfile` (`ARG GO_VERSION`) and in `.github/workflows/ci.yml` (`env.GO_VERSION`).
 2. Change `go` / `toolchain` in `go.mod` only if the minimum language version must move.
-3. `go mod tidy -e && go mod vendor`, run the tests, rebuild the image.
+3. `go mod tidy && go mod vendor`, run the tests, rebuild the image.
 
 Go patch releases carry most of the standard library security fixes (`net/http`, `crypto/tls`, ...), this is the most valuable monthly task.
 

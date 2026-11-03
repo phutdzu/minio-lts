@@ -72,7 +72,7 @@ Some end-to-end suites (`make verify-healing`, `make test-replication`, `make te
 
 ```sh
 go get <module>@<version>
-go mod tidy -e   # -e: a test-only import of github.com/go-openapi/swag is unresolvable upstream
+go mod tidy
 go mod vendor
 ```
 
