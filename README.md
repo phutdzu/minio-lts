@@ -9,7 +9,7 @@ An unofficial, self-maintained continuation of the MinIO community edition: a hi
 > [!IMPORTANT]
 > This project is **not affiliated with or endorsed by MinIO, Inc.**
 > Upstream [`minio/minio`](https://github.com/minio/minio) is no longer maintained and no longer ships binaries or container images.
-> This project keeps the source buildable, fixes security issues and may add features. "LTS" is only a name, there is no support promise. Use it at your own risk (see [License](#license)).
+> This project keeps the source buildable and upgrades dependencies when vulnerabilities are found. It is maintained by one person: no support, no response time and no data guarantee are promised, and "LTS" is only a name. Use it at your own risk (see [License](#license)).
 
 ## Quick start
 
@@ -53,10 +53,20 @@ Versions look like `LTS.<UTC commit time>`, e.g. `LTS.2026-11-01T04-07-36Z`. It 
 ## What differs from upstream
 
 - All dependencies are vendored in [`vendor/`](vendor), so the build works offline and does not depend on upstream repositories staying online.
-- **In-place update is disabled.** The server never contacts `dl.min.io` and the upstream signing key was removed.
-- **Callhome and SUBNET are disabled.** Nothing is sent to MinIO, Inc. services.
+- **In-place update is removed from the server code.** There is no reference to `dl.min.io` left in this repository's Go code and the upstream signing key was removed.
+- **Callhome and SUBNET are switched off in the server code** (callhome is hard-coded off). The libraries vendored from MinIO (the web console, the `mc` client, `madmin-go`) were not audited, and `mc update` still points at `dl.min.io`. Network traffic of a release has not been captured and checked, if that matters to you, block outbound access and test.
 - Dependencies and Go are kept current, `govulncheck` runs on every change and weekly.
+- **The web console is an object browser only.** The console bundled with the 2025-09 community code has no pages for users, policies, access keys or settings. Manage them with `mc admin`, see [INSTALL.md](INSTALL.md#first-steps-with-mc). It still shows the upstream MinIO logo, "Community Edition" and links to MinIO's commercial license page, and nobody has checked yet whether it contacts `min.io`.
 - Release binaries are not signed (checksums only) and there are no `.deb`/`.rpm` packages yet.
+
+## Tested
+
+Checked on the release `LTS.2026-11-03T07-00-07Z` and the one before it, by hand, not by an automated suite:
+
+- **Binaries and images** (anonymous pull): linux/arm64 on macOS and linux/amd64 on Ubuntu. Version string, health check, S3 round trip with `mc`, data kept after restart, container removal and `SIGKILL`.
+- **Upgrade from `RELEASE.2025-04-08T15-41-24Z`** on a copy of a real volume: about 85 GB, about 44,000 objects with versions, 8 buckets, one drive. The new image started on the old volume, listed the same objects, versions and total size as the old server, showed no errors in its log, and served files (an image preview in the console). On a small test volume, users, a read-only policy and bucket versioning also survived.
+
+Not tested, so do not assume it works: an application running against it, multi-node or multi-drive (erasure coded) setups, replication, lifecycle rules, KMS/encryption, downgrading back to the old release after the new one wrote to the volume, ppc64le and Windows binaries, the Helm chart on a real cluster, the systemd unit in [INSTALL.md](INSTALL.md). Copy the volume first and try it on the copy.
 
 ## Security status
 
