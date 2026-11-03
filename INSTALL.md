@@ -125,6 +125,8 @@ sudo chown minio-user:minio-user /var/lib/minio
 ```sh
 MINIO_VOLUMES="/var/lib/minio"
 MINIO_OPTS="--console-address :9001"
+# keeps the console from asking MinIO's release service for a version list
+RELEASE_SERVICE_HOST=http://127.0.0.1:9
 MINIO_ROOT_USER=admin
 MINIO_ROOT_PASSWORD=change-me-please
 ```
@@ -266,13 +268,13 @@ Tested once, on a copy of a real volume written by `RELEASE.2025-04-08T15-41-24Z
 4. Start it, run `mc ls` and `mc admin user list`, open a few files, then test your application.
 5. Do not expect to go back: once the new server has written to the volume, the old release may not read it. Roll back from your copy.
 
-If you manage users, policies or access keys in the old web console, note that the web console here is an object browser only, use `mc admin` instead.
+The web console here is the same old v1.7.6 generation as `RELEASE.2025-04-08`, with the administrator pages, so you can keep managing users and policies there. `mc admin` works too.
 
 ## Differences from upstream
 
 - The in-place updater is removed from the server code, there is no `dl.min.io` reference left in it (`mc update` still points there).
 - Callhome and SUBNET are switched off in the server code. The vendored console, `mc` and `madmin-go` were not audited and release traffic was not captured.
-- The web console has no pages for users, policies, access keys or settings, use `mc admin`. It keeps the upstream branding and links.
+- The web console is the old v1.7.6 (administrator pages included), vendored because its repository is gone from GitHub and nobody maintains it. It keeps MinIO's branding, can load images from `min.io`, and may call MinIO's release service. The container image sets `RELEASE_SERVICE_HOST=http://127.0.0.1:9` so that call fails on the machine itself, with the binary set it yourself (an empty value does not work, the console ignores it).
 - Images are built from this repository on Alpine, with no `mc` or `curl` in the server image.
 - Release binaries are unsigned (SHA256SUMS only), and there are no `.deb`/`.rpm` packages yet.
 

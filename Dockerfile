@@ -102,6 +102,12 @@ ENV MINIO_ACCESS_KEY_FILE=access_key \
     MINIO_KMS_SECRET_KEY_FILE=kms_master_key \
     MINIO_CONFIG_ENV_FILE=config.env
 
+# The bundled console (v1.7.6) can ask MinIO's release service for a version
+# list (default https://enterprise-updates.ic.min.dev). An empty value is
+# ignored by the console, so point it at a closed local port: the request then
+# fails at once on this machine. Override it to restore the default behaviour.
+ENV RELEASE_SERVICE_HOST=http://127.0.0.1:9
+
 COPY --from=build /out/minio /usr/bin/minio
 COPY --chmod=0755 dockerscripts/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
 COPY CREDITS LICENSE NOTICE /licenses/

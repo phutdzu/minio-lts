@@ -45,7 +45,7 @@ type LoginDetails struct {
 	IsK8S bool `json:"isK8S,omitempty"`
 
 	// login strategy
-	// Enum: ["form","service-account","redirect-service-account"]
+	// Enum: ["form","redirect","service-account","redirect-service-account"]
 	LoginStrategy string `json:"loginStrategy,omitempty"`
 
 	// redirect rules
@@ -74,7 +74,7 @@ var loginDetailsTypeLoginStrategyPropEnum []interface{}
 
 func init() {
 	var res []string
-	if err := json.Unmarshal([]byte(`["form","service-account","redirect-service-account"]`), &res); err != nil {
+	if err := json.Unmarshal([]byte(`["form","redirect","service-account","redirect-service-account"]`), &res); err != nil {
 		panic(err)
 	}
 	for _, v := range res {
@@ -86,6 +86,9 @@ const (
 
 	// LoginDetailsLoginStrategyForm captures enum value "form"
 	LoginDetailsLoginStrategyForm string = "form"
+
+	// LoginDetailsLoginStrategyRedirect captures enum value "redirect"
+	LoginDetailsLoginStrategyRedirect string = "redirect"
 
 	// LoginDetailsLoginStrategyServiceDashAccount captures enum value "service-account"
 	LoginDetailsLoginStrategyServiceDashAccount string = "service-account"
