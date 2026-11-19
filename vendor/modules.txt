@@ -164,6 +164,10 @@ github.com/acarl005/stripansi
 ## explicit; go 1.13
 github.com/alecthomas/participle
 github.com/alecthomas/participle/lexer
+# github.com/antithesishq/antithesis-sdk-go v0.7.0-default-no-op
+## explicit; go 1.24.0
+github.com/antithesishq/antithesis-sdk-go/assert
+github.com/antithesishq/antithesis-sdk-go/internal
 # github.com/apache/thrift v0.24.0
 ## explicit; go 1.25
 github.com/apache/thrift/lib/go/thrift
@@ -491,7 +495,7 @@ github.com/golang/snappy
 # github.com/gomodule/redigo v1.9.2
 ## explicit; go 1.17
 github.com/gomodule/redigo/redis
-# github.com/google/go-tpm v0.9.3
+# github.com/google/go-tpm v0.9.8
 ## explicit; go 1.22
 github.com/google/go-tpm/legacy/tpm2
 github.com/google/go-tpm/tpmutil
@@ -803,7 +807,7 @@ github.com/minio/dperf/pkg/dperf
 # github.com/minio/filepath v1.0.0
 ## explicit
 github.com/minio/filepath
-# github.com/minio/highwayhash v1.0.3
+# github.com/minio/highwayhash v1.0.4
 ## explicit; go 1.15
 github.com/minio/highwayhash
 # github.com/minio/kms-go/kes v0.3.1
@@ -930,19 +934,21 @@ github.com/muesli/termenv
 # github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822
 ## explicit
 github.com/munnerz/goautoneg
-# github.com/nats-io/jwt/v2 v2.7.4
-## explicit; go 1.23.0
+# github.com/nats-io/jwt/v2 v2.8.2
+## explicit; go 1.25.0
 github.com/nats-io/jwt/v2
-# github.com/nats-io/nats-server/v2 v2.11.1
-## explicit; go 1.23.0
+# github.com/nats-io/nats-server/v2 v2.12.12
+## explicit; go 1.25.0
 github.com/nats-io/nats-server/v2/conf
 github.com/nats-io/nats-server/v2/internal/fastrand
 github.com/nats-io/nats-server/v2/internal/ldap
 github.com/nats-io/nats-server/v2/logger
 github.com/nats-io/nats-server/v2/server
+github.com/nats-io/nats-server/v2/server/ats
 github.com/nats-io/nats-server/v2/server/avl
 github.com/nats-io/nats-server/v2/server/certidp
 github.com/nats-io/nats-server/v2/server/certstore
+github.com/nats-io/nats-server/v2/server/elastic
 github.com/nats-io/nats-server/v2/server/gsl
 github.com/nats-io/nats-server/v2/server/pse
 github.com/nats-io/nats-server/v2/server/stree
@@ -952,14 +958,14 @@ github.com/nats-io/nats-server/v2/server/tpm
 github.com/nats-io/nats-server/v2/test
 # github.com/nats-io/nats-streaming-server v0.24.6
 ## explicit; go 1.14
-# github.com/nats-io/nats.go v1.41.2
-## explicit; go 1.23.0
+# github.com/nats-io/nats.go v1.51.0
+## explicit; go 1.25.0
 github.com/nats-io/nats.go
 github.com/nats-io/nats.go/encoders/builtin
 github.com/nats-io/nats.go/internal/parser
 github.com/nats-io/nats.go/util
-# github.com/nats-io/nkeys v0.4.11
-## explicit; go 1.23.0
+# github.com/nats-io/nkeys v0.4.16
+## explicit; go 1.25.0
 github.com/nats-io/nkeys
 # github.com/nats-io/nuid v1.0.1
 ## explicit

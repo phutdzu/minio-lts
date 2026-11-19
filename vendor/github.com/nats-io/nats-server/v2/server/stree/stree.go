@@ -16,6 +16,9 @@ package stree
 import (
 	"bytes"
 	"slices"
+	"unsafe"
+
+	"github.com/nats-io/nats-server/v2/server/gsl"
 )
 
 // SubjectTree is an adaptive radix trie (ART) for storing subject information on literal subjects.
@@ -121,10 +124,28 @@ func (t *SubjectTree[T]) Match(filter []byte, cb func(subject []byte, val *T)) {
 	var raw [16][]byte
 	parts := genParts(filter, raw[:0])
 	var _pre [256]byte
-	t.match(t.root, parts, _pre[:0], cb)
+	t.match(t.root, parts, _pre[:0], func(subject []byte, val *T) bool {
+		cb(subject, val)
+		return true
+	})
 }
 
-// IterOrdered will walk all entries in the SubjectTree lexographically. The callback can return false to terminate the walk.
+// MatchUntil will match against a subject that can have wildcards and invoke
+// the callback func for each matched value.
+// Returning false from the callback will stop matching immediately.
+// Returns true if matching ran to completion, false if callback stopped it early.
+func (t *SubjectTree[T]) MatchUntil(filter []byte, cb func(subject []byte, val *T) bool) bool {
+	if t == nil || t.root == nil || len(filter) == 0 || cb == nil {
+		return true
+	}
+	// We need to break this up into chunks based on wildcards, either pwc '*' or fwc '>'.
+	var raw [16][]byte
+	parts := genParts(filter, raw[:0])
+	var _pre [256]byte
+	return t.match(t.root, parts, _pre[:0], cb)
+}
+
+// IterOrdered will walk all entries in the SubjectTree lexicographically. The callback can return false to terminate the walk.
 func (t *SubjectTree[T]) IterOrdered(cb func(subject []byte, val *T) bool) {
 	if t == nil || t.root == nil {
 		return
@@ -244,6 +265,10 @@ func (t *SubjectTree[T]) delete(np *node, subject []byte, si int) (*T, bool) {
 	}
 	// Not a leaf node.
 	if bn := n.base(); len(bn.prefix) > 0 {
+		// subject could be shorter and would panic on bad index into subject slice.
+		if len(subject) < si+len(bn.prefix) {
+			return nil, false
+		}
 		if !bytes.Equal(subject[si:si+len(bn.prefix)], bn.prefix) {
 			return nil, false
 		}
@@ -289,7 +314,8 @@ func (t *SubjectTree[T]) delete(np *node, subject []byte, si int) (*T, bool) {
 
 // Internal function which can be called recursively to match all leaf nodes to a given filter subject which
 // once here has been decomposed to parts. These parts only care about wildcards, both pwc and fwc.
-func (t *SubjectTree[T]) match(n node, parts [][]byte, pre []byte, cb func(subject []byte, val *T)) {
+// Returns false if the callback requested to stop matching.
+func (t *SubjectTree[T]) match(n node, parts [][]byte, pre []byte, cb func(subject []byte, val *T) bool) bool {
 	// Capture if we are sitting on a terminal fwc.
 	var hasFWC bool
 	if lp := len(parts); lp > 0 && len(parts[lp-1]) > 0 && parts[lp-1][0] == fwc {
@@ -300,15 +326,17 @@ func (t *SubjectTree[T]) match(n node, parts [][]byte, pre []byte, cb func(subje
 		nparts, matched := n.matchParts(parts)
 		// Check if we did not match.
 		if !matched {
-			return
+			return true
 		}
 		// We have matched here. If we are a leaf and have exhausted all parts or he have a FWC fire callback.
 		if n.isLeaf() {
 			if len(nparts) == 0 || (hasFWC && len(nparts) == 1) {
 				ln := n.(*leaf[T])
-				cb(append(pre, ln.suffix...), &ln.value)
+				if !cb(append(pre, ln.suffix...), &ln.value) {
+					return false
+				}
 			}
-			return
+			return true
 		}
 		// We have normal nodes here.
 		// We need to append our prefix
@@ -336,17 +364,23 @@ func (t *SubjectTree[T]) match(n node, parts [][]byte, pre []byte, cb func(subje
 				if cn.isLeaf() {
 					ln := cn.(*leaf[T])
 					if len(ln.suffix) == 0 {
-						cb(append(pre, ln.suffix...), &ln.value)
+						if !cb(append(pre, ln.suffix...), &ln.value) {
+							return false
+						}
 					} else if hasTermPWC && bytes.IndexByte(ln.suffix, tsep) < 0 {
-						cb(append(pre, ln.suffix...), &ln.value)
+						if !cb(append(pre, ln.suffix...), &ln.value) {
+							return false
+						}
 					}
 				} else if hasTermPWC {
 					// We have terminal pwc so call into match again with the child node.
-					t.match(cn, nparts, pre, cb)
+					if !t.match(cn, nparts, pre, cb) {
+						return false
+					}
 				}
 			}
 			// Return regardless.
-			return
+			return true
 		}
 		// If we are sitting on a terminal fwc, put back and continue.
 		if hasFWC && len(nparts) == 0 {
@@ -363,21 +397,24 @@ func (t *SubjectTree[T]) match(n node, parts [][]byte, pre []byte, cb func(subje
 			// to see if we match further down.
 			for _, cn := range n.children() {
 				if cn != nil {
-					t.match(cn, nparts, pre, cb)
+					if !t.match(cn, nparts, pre, cb) {
+						return false
+					}
 				}
 			}
-			return
+			return true
 		}
 		// Here we have normal traversal, so find the next child.
 		nn := n.findChild(p)
 		if nn == nil {
-			return
+			return true
 		}
 		n, parts = *nn, nparts
 	}
+	return true
 }
 
-// Interal iter function to walk nodes in lexigraphical order.
+// Internal iter function to walk nodes in lexicographical order.
 func (t *SubjectTree[T]) iter(n node, pre []byte, ordered bool, cb func(subject []byte, val *T) bool) bool {
 	if n.isLeaf() {
 		ln := n.(*leaf[T])
@@ -417,4 +454,90 @@ func (t *SubjectTree[T]) iter(n node, pre []byte, ordered bool, cb func(subject 
 		}
 	}
 	return true
+}
+
+// LazyIntersect iterates the smaller of the two provided subject trees and
+// looks for matching entries in the other. It is lazy in that it does not
+// aggressively optimize against repeated walks, but is considerably faster
+// in most cases than intersecting against a potentially large sublist.
+func LazyIntersect[TL, TR any](tl *SubjectTree[TL], tr *SubjectTree[TR], cb func([]byte, *TL, *TR)) {
+	if tl == nil || tr == nil || tl.root == nil || tr.root == nil {
+		return
+	}
+	// Iterate over the smaller tree to reduce the number of rounds.
+	if tl.Size() <= tr.Size() {
+		tl.IterFast(func(key []byte, v1 *TL) bool {
+			if v2, ok := tr.Find(key); ok {
+				cb(key, v1, v2)
+			}
+			return true
+		})
+	} else {
+		tr.IterFast(func(key []byte, v2 *TR) bool {
+			if v1, ok := tl.Find(key); ok {
+				cb(key, v1, v2)
+			}
+			return true
+		})
+	}
+}
+
+// IntersectGSL will match all items in the given subject tree that
+// have interest expressed in the given sublist. The callback will only be called
+// once for each subject, regardless of overlapping subscriptions in the sublist.
+func IntersectGSL[T any, SL comparable](t *SubjectTree[T], sl *gsl.GenericSublist[SL], cb func(subject []byte, val *T) bool) {
+	if t == nil || t.root == nil || sl == nil {
+		return
+	}
+	var _pre [256]byte
+	_intersectGSL(t.root, _pre[:0], sl, cb)
+}
+
+func _intersectGSL[T any, SL comparable](n node, pre []byte, sl *gsl.GenericSublist[SL], cb func(subject []byte, val *T) bool) bool {
+	if n.isLeaf() {
+		ln := n.(*leaf[T])
+		subj := append(pre, ln.suffix...)
+		if sl.HasInterest(bytesToString(subj)) {
+			return cb(subj, &ln.value)
+		}
+		return true
+	}
+	bn := n.base()
+	pre = append(pre, bn.prefix...)
+	for _, cn := range n.children() {
+		if cn == nil {
+			continue
+		}
+		subj := append(pre, cn.path()...)
+		if !hasInterestForTokens(sl, subj, len(pre)) {
+			continue
+		}
+		if !_intersectGSL(cn, pre, sl, cb) {
+			return false
+		}
+	}
+	return true
+}
+
+// The subject tree can return partial tokens so we need to check starting interest
+// only from whole tokens when we encounter a tsep.
+func hasInterestForTokens[SL comparable](sl *gsl.GenericSublist[SL], subj []byte, since int) bool {
+	for i := since; i < len(subj); i++ {
+		if subj[i] == tsep {
+			if !sl.HasInterestStartingIn(bytesToString(subj[:i])) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// Note this will avoid a copy of the data used for the string, but it will also reference the existing slice's data pointer.
+// So this should be used sparingly when we know the encompassing byte slice's lifetime is the same.
+func bytesToString(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+	p := unsafe.SliceData(b)
+	return unsafe.String(p, len(b))
 }
